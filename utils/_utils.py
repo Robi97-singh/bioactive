@@ -140,7 +140,7 @@ class LinearWarmup(_LRScheduler):
         self.max_lr = max_lr
         for group in optimizer.param_groups:
             group['lr'] = self.eta_min        
-        super(LinearWarmup, self).__init__(optimizer, last_epoch, verbose)
+        super(LinearWarmup, self).__init__(optimizer, last_epoch)
 
     def get_lr(self):
         if not self._get_lr_called_within_step:
@@ -390,8 +390,9 @@ class BCEMASKEDLoss(nn.Module):
         super().__init__()
         
         self.BCE_loss = nn.BCEWithLogitsLoss(reduction='none')
-        self.gamma  = torch.tensor([gamma], device="cuda")
-        self.thresh = torch.tensor([0.5], device="cuda")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.gamma  = torch.tensor([gamma], device=device)
+        self.thresh = torch.tensor([0.5],   device=device)
         
     def forward(self, input, target):
         if not (target.size() == input.size()):

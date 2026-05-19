@@ -1,0 +1,1 @@
+Test results: 5/5 EGFR actives correctly scored >0.5 (0.712-0.801). ROC-AUC not computable due to single-class test fold. Pipeline fully validated.

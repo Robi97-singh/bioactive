@@ -2,6 +2,8 @@ import torch
 import torch.distributed as dist
 
 def is_rank0(device_id=None):
+    if not torch.cuda.is_available():
+        return True
     if device_id is None:
         device_id = torch.cuda.current_device()
     return device_id == 0

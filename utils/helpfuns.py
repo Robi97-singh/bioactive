@@ -77,7 +77,7 @@ def get_saved_model_path(checkpoint_name):
 def load_params(args):
     if args.checkpoint:
         checkpoint_path = get_saved_model_path(args.checkpoint)
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, weights_only=False)
         checkpoint['parameters']['training_params']['model_name'] = args.checkpoint
         return checkpoint['parameters']    
     elif args.params_path:
