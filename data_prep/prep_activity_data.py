@@ -1,132 +1,244 @@
-
 import sqlite3
 import pandas as pd
-import os
 import numpy as np
+import os
+from rdkit import Chem
+from rdkit.Chem.inchi import MolToInchi, InchiToInchiKey
 
-METADATA_PATH = "/path/to/metadata/"
-PATH_ChEMBL   = "/path/to/chembl_33/chembl_33.db"
+# ── Paths ────────────────────────────────────────────────────────────────────
+BASE_PATH     = "/mnt/ssd8/bioactive/"
+METADATA_PATH = BASE_PATH + "src/data/metadata/"
+OUTPUT_PATH   = BASE_PATH + "src/data/"
+CHEMBL_DB     = BASE_PATH + "chembl/chembl_37/chembl_37_sqlite/chembl_37.db"
 
+# ── Activity thresholds (paper-faithful) ─────────────────────────────────────
+ACTIVE_THRESHOLD   = 6.0
+INACTIVE_THRESHOLD = 5.0
 
-wells   = pd.read_csv(METADATA_PATH+"metadata/well.csv.gz")
+# Lowered to match paper (~140 targets)
+MIN_ACTIVES   = 3
+MIN_INACTIVES = 3
 
-con = sqlite3.connect(PATH_ChEMBL)
-cur = con.cursor()
-cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-command = """select * from assays"""
+# Use all JUMP-CP sources (None = all sources)
+SOURCES_TO_USE = None
 
-assay_df = pd.read_sql_query(command, con)
-
-command = """select * from compound_structures"""
-
-compound_df = pd.read_sql_query(command, con)
-
-
-chembl_compounds = set(compound_df.standard_inchi_key.unique())
-chembl_compounds_InChI = set(compound_df.standard_inchi_key.unique())
-
-
-compond = pd.read_csv(METADATA_PATH+"metadata/compound.csv.gz")
-
-
-jump_compounds       = set(compond.Metadata_InChIKey.unique())
-jump_compounds_InChI = set(compond.Metadata_InChI.unique())
-
-
-overlapping_compounds = chembl_compounds.intersection(jump_compounds)
-
-df_overlap_compounds = compound_df[compound_df.standard_inchi_key.isin(overlapping_compounds)]
-
-molregno_overlapping = df_overlap_compounds.molregno.values
-
-
-# # Check activity data
-
-command = """select * from activities"""
-
-activity_df = pd.read_sql_query(command, con)
-
-
-activity_df.standard_type.value_counts().head(50)
-
-
-activity_of_overlapping_compounds = activity_df[activity_df.molregno.isin(molregno_overlapping)]
-
-activity_of_overlapping_compounds.head()
-
-setting = {"standard_type" : "Potency"}
+# ── SQL query ────────────────────────────────────────────────────────────────
+ACTIVITY_QUERY = """
+SELECT
+    md.chembl_id                    AS molecule_chembl_id,
+    cs.canonical_smiles             AS canonical_smiles,
+    act.pchembl_value               AS pchembl_value,
+    act.standard_type               AS standard_type,
+    ass.chembl_id                   AS assay_chembl_id,
+    td.chembl_id                    AS target_chembl_id,
+    td.pref_name                    AS target_name,
+    td.target_type                  AS target_type,
+    td.organism                     AS organism
+FROM
+    activities          act
+    JOIN assays         ass ON act.assay_id       = ass.assay_id
+    JOIN target_dictionary td ON ass.tid           = td.tid
+    JOIN molecule_dictionary md ON act.molregno    = md.molregno
+    JOIN compound_structures cs ON act.molregno    = cs.molregno
+WHERE
+    act.standard_type  IN ('IC50', 'Ki', 'Kd', 'EC50')
+    AND act.pchembl_value IS NOT NULL
+    AND act.data_validity_comment IS NULL
+    AND act.potential_duplicate = 0
+    AND td.target_type = 'SINGLE PROTEIN'
+    AND td.organism    = 'Homo sapiens'
+    AND cs.canonical_smiles IS NOT NULL
+"""
 
 
-with_known_relation = True # if only using those with defined relation
-potency_subset = activity_of_overlapping_compounds[activity_of_overlapping_compounds.standard_type == "Potency"]
-potency_subset = potency_subset[potency_subset.activity_comment.isin(['inactive', 'active', 'Active', 'Not Active'])]
-compound_counts = potency_subset.assay_id.value_counts()
-
-selected_subset = potency_subset[potency_subset.assay_id.isin(compound_counts[(compound_counts > 100)].index)]
-
-selected_subset.loc[:,"activity_based_on_comment"] = 0
-
-selected_subset.loc[selected_subset.activity_comment.isin(["Active", "active"]), "activity_based_on_comment"] = 1
-
-selected_subset.loc[selected_subset.activity_comment.isin(["Not Active", "inactive"]), "activity_based_on_comment"] = -1
-
-selected_subset.activity_based_on_comment.value_counts()
-
-label_matrix = selected_subset.pivot_table(values="activity_based_on_comment", index="molregno",columns="assay_id", aggfunc=np.median)
-
-known = label_matrix.isna() == 0
-label_matrix = label_matrix.fillna(0)
-
-assay_ids = ((label_matrix == 1).sum() > 50)
-subset_of_assays = assay_ids[assay_ids].index
-subset_with_sufficent_negatives = ((label_matrix[subset_of_assays] == -1.0).sum() > 50)
-subset_of_assays_to_keep = subset_with_sufficent_negatives[subset_with_sufficent_negatives].index
+def smiles_to_inchikey(smiles):
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return None
+        inchi = MolToInchi(mol)
+        if inchi is None:
+            return None
+        return InchiToInchiKey(inchi)
+    except Exception:
+        return None
 
 
-label_matrix_subset = label_matrix[subset_of_assays_to_keep]
-known = (label_matrix_subset != 0.0).sum(axis=1)
+def load_chembl_activities():
+    print(f"Connecting to ChEMBL SQLite: {CHEMBL_DB}")
+    if not os.path.exists(CHEMBL_DB):
+        raise FileNotFoundError(f"ChEMBL database not found at {CHEMBL_DB}")
+    conn = sqlite3.connect(CHEMBL_DB)
+    print("Running activity query (this may take 2-5 minutes)...")
+    df = pd.read_sql_query(ACTIVITY_QUERY, conn)
+    conn.close()
+    print(f"  Raw records fetched : {len(df):,}")
+    df["pchembl_value"] = pd.to_numeric(df["pchembl_value"], errors="coerce")
+    df = df.dropna(subset=["pchembl_value", "canonical_smiles"])
+    print(f"  After dropping nulls: {len(df):,}")
+    print(f"  Unique targets      : {df['target_chembl_id'].nunique():,}")
+    print(f"  Unique compounds    : {df['molecule_chembl_id'].nunique():,}")
+    return df
 
 
-selected_subset = compound_df[compound_df.molregno.isin(label_matrix_subset.index)]
-
-subset_of_compounds_JUMP_id = compond[compond.Metadata_InChIKey.isin(selected_subset.standard_inchi_key)].Metadata_JCP2022.values
-
-
-well_subset_ = wells[wells.Metadata_JCP2022.isin(subset_of_compounds_JUMP_id)]
-subset_of_compouns_in_source_JCP = well_subset_[well_subset_.Metadata_Source == "source_11"].Metadata_JCP2022.values
-
-source_11_molregno = compound_df[compound_df.standard_inchi_key.isin(compond[compond.Metadata_JCP2022.isin(subset_of_compouns_in_source_JCP)].Metadata_InChIKey.values)].molregno.values
-
-positive_ids = ((label_matrix_subset.loc[source_11_molregno] == 1.0).sum() > 50)
-negative_ids = ((label_matrix_subset[positive_ids[positive_ids].index].loc[source_11_molregno] == -1.0).sum() > 50)
-
-label_matrix_filtered = label_matrix_subset[negative_ids[negative_ids].index].loc[source_11_molregno]
-
-
-label_matrix_filtered.reset_index()
-label_matrix_renamed = label_matrix_filtered.merge(df_overlap_compounds[["molregno", "standard_inchi_key"]],
-                            how="left", left_on="molregno", right_on="molregno",)
+def derive_inchikeys(df):
+    print("\nDeriving InChIKeys from SMILES...")
+    unique_smiles = df["canonical_smiles"].unique()
+    print(f"  Computing InChIKeys for {len(unique_smiles):,} unique SMILES...")
+    smiles_to_key = {}
+    for i, smi in enumerate(unique_smiles):
+        if i % 50000 == 0:
+            print(f"    {i:,}/{len(unique_smiles):,}", end="\r")
+        smiles_to_key[smi] = smiles_to_inchikey(smi)
+    print(f"\n  Done.")
+    df = df.copy()
+    df["standard_inchi_key"] = df["canonical_smiles"].map(smiles_to_key)
+    df = df.dropna(subset=["standard_inchi_key"])
+    print(f"  Records with valid InChIKey: {len(df):,}")
+    return df
 
 
+def build_target_label_matrix(activity_df, jump_inchikeys):
+    print("\nBuilding target-level label matrix...")
+    df = activity_df[activity_df["standard_inchi_key"].isin(jump_inchikeys)].copy()
+    print(f"  Records overlapping with JUMP-CP : {len(df):,}")
+    print(f"  Unique compounds                 : {df['standard_inchi_key'].nunique():,}")
+    print(f"  Unique targets                   : {df['target_name'].nunique():,}")
 
-wells_11      = wells[wells.Metadata_Source == "source_11"]
-wells_11_meta = wells_11.merge(compond, how="left", on="Metadata_JCP2022")
-wells_11_meta_overlapping = wells_11_meta[wells_11_meta.Metadata_InChIKey.isin(label_matrix_renamed.standard_inchi_key.unique())]
+    if df.empty:
+        raise ValueError("No overlapping compounds between ChEMBL and JUMP-CP.")
 
-combined = wells_11_meta_overlapping.merge(label_matrix_renamed, how = "left", right_on = "standard_inchi_key", left_on = "Metadata_InChIKey")
+    agg = df.groupby(
+        ["standard_inchi_key", "target_name", "target_chembl_id"]
+    )["pchembl_value"].median().reset_index()
+    agg.rename(columns={"pchembl_value": "median_pchembl"}, inplace=True)
 
-wells_11.loc[:,"sample"] = 0
-df_sites = pd.DataFrame([1,2,3,4,5,6,7,8,9], columns=["Metadata_Site"])
-df_sites.loc[:,"sample"] = 0
-well_11_with_sites = wells_11[["Metadata_Plate", "Metadata_Well", "sample"]].merge(df_sites)
+    agg["target_label"] = 0
+    agg.loc[agg["median_pchembl"] >= ACTIVE_THRESHOLD,   "target_label"] =  1
+    agg.loc[agg["median_pchembl"] <= INACTIVE_THRESHOLD, "target_label"] = -1
+    agg = agg[agg["target_label"] != 0]
 
-well_11_with_sites["Metadata_Path"] = well_11_with_sites["Metadata_Plate"] + "/" + well_11_with_sites["Metadata_Well"] + "_" + well_11_with_sites["Metadata_Site"].astype(str)  + ".png"
+    label_matrix = agg.pivot_table(
+        values="target_label",
+        index="standard_inchi_key",
+        columns="target_name",
+        aggfunc="first",
+    ).fillna(0)
 
-files_df = well_11_with_sites
+    print(f"\n  Label matrix shape (before filter): {label_matrix.shape}")
 
-merged_with_wells = combined.merge(files_df, how="left", on = ["Metadata_Plate", "Metadata_Well"])
+    valid_targets = [
+        col for col in label_matrix.columns
+        if (label_matrix[col] ==  1).sum() >= MIN_ACTIVES
+        and (label_matrix[col] == -1).sum() >= MIN_INACTIVES
+    ]
+    label_matrix = label_matrix[valid_targets]
+
+    print(f"  Targets passing quality filter   : {len(valid_targets)}")
+    print(f"  Label matrix shape (after filter): {label_matrix.shape}")
+    print(f"\n  Per-target class counts:")
+
+    target_stats = []
+    for col in label_matrix.columns:
+        n_pos = (label_matrix[col] ==  1).sum()
+        n_neg = (label_matrix[col] == -1).sum()
+        target_stats.append((col, n_pos, n_neg))
+    target_stats.sort(key=lambda x: -x[1])
+    for col, n_pos, n_neg in target_stats:
+        print(f"    {col[:50]:50s}  active={n_pos:4d}  inactive={n_neg:4d}")
+
+    target_list_path = OUTPUT_PATH + "valid_targets.csv"
+    pd.DataFrame(
+        target_stats, columns=["target_name", "n_actives", "n_inactives"]
+    ).to_csv(target_list_path, index=False)
+    print(f"\n  Target list saved -> {target_list_path}")
+    return label_matrix
 
 
+def merge_with_jump(label_matrix, compound, wells, plate):
+    print("\nMerging with JUMP-CP metadata...")
 
-merged_with_wells.to_csv("data.csv")
+    lm = label_matrix.reset_index()
+    lm["Metadata_JCP2022"] = lm["standard_inchi_key"].map(
+        compound.set_index("Metadata_InChIKey")["Metadata_JCP2022"]
+    )
+    lm = lm.dropna(subset=["Metadata_JCP2022"])
+    print(f"  Compounds mapped to JCP IDs: {len(lm):,}")
 
+    if SOURCES_TO_USE is not None:
+        plate_filtered = plate[
+            (plate["Metadata_Source"].isin(SOURCES_TO_USE)) &
+            (plate["Metadata_PlateType"] == "COMPOUND")
+        ]
+        print(f"  Using sources: {SOURCES_TO_USE}")
+    else:
+        plate_filtered = plate[plate["Metadata_PlateType"] == "COMPOUND"]
+        print(f"  Using ALL sources ({plate['Metadata_Source'].nunique()} sources)")
+
+    valid_plates = plate_filtered["Metadata_Plate"].values
+
+    wells_filtered = wells[
+        (wells["Metadata_Plate"].isin(valid_plates)) &
+        (wells["Metadata_JCP2022"].isin(lm["Metadata_JCP2022"]))
+    ].copy()
+    print(f"  Matched wells: {len(wells_filtered):,}")
+
+    if wells_filtered.empty:
+        raise ValueError("No matching wells found.")
+
+    wells_filtered["_key"] = 0
+    df_sites = pd.DataFrame({"Metadata_Site": range(1, 10), "_key": 0})
+    well_with_sites = wells_filtered[
+        ["Metadata_Plate", "Metadata_Well", "Metadata_JCP2022",
+         "Metadata_Source", "_key"]
+    ].merge(df_sites, on="_key").drop(columns="_key")
+
+    well_with_sites["Metadata_Path"] = (
+        well_with_sites["Metadata_Plate"].astype(str) + "/" +
+        well_with_sites["Metadata_Well"]              + "_" +
+        well_with_sites["Metadata_Site"].astype(str)  + ".png"
+    )
+
+    target_cols = [
+        c for c in lm.columns
+        if c not in ["standard_inchi_key", "Metadata_JCP2022"]
+    ]
+    final = well_with_sites.merge(
+        lm[["Metadata_JCP2022"] + target_cols],
+        on="Metadata_JCP2022",
+        how="left",
+    )
+
+    print(f"  Final rows        : {len(final):,}")
+    print(f"  Unique compounds  : {final['Metadata_JCP2022'].nunique():,}")
+    print(f"  Unique plates     : {final['Metadata_Plate'].nunique():,}")
+    print(f"  Unique sources    : {final['Metadata_Source'].nunique():,}")
+    print(f"  Target columns    : {len(target_cols)}")
+    return final
+
+
+def main():
+    os.makedirs(OUTPUT_PATH, exist_ok=True)
+
+    print("Loading JUMP-CP metadata...")
+    compound = pd.read_csv(METADATA_PATH + "compound.csv.gz")
+    wells    = pd.read_csv(METADATA_PATH + "well.csv.gz")
+    plate    = pd.read_csv(METADATA_PATH + "plate.csv.gz")
+    print(f"  Compounds: {compound.shape[0]:,}  Wells: {wells.shape[0]:,}  Plates: {plate.shape[0]:,}")
+    jump_inchikeys = set(compound["Metadata_InChIKey"].dropna().unique())
+    print(f"  Unique InChIKeys in JUMP-CP: {len(jump_inchikeys):,}")
+
+    activity_df  = load_chembl_activities()
+    activity_df  = derive_inchikeys(activity_df)
+    label_matrix = build_target_label_matrix(activity_df, jump_inchikeys)
+    final        = merge_with_jump(label_matrix, compound, wells, plate)
+
+    out_path = OUTPUT_PATH + "data.csv"
+    final.to_csv(out_path, index=False)
+    print(f"\n✅ Saved  -> {out_path}")
+    print(f"   Shape  : {final.shape}")
+    print(f"   Columns: {list(final.columns[:8])} ... +{len(final.columns)-8} target cols")
+
+
+if __name__ == "__main__":
+    main()

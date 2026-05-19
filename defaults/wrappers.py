@@ -168,7 +168,18 @@ class DefaultWrapper:
         in the DDP constructor, you don’t need to worry about different DDP processes 
         start from different model parameter initial values.   
         """
-        model = Classifier(self.model_params)
+        backbone = self.model_params.backbone_type
+        if backbone in ("dinov2_base", "dinov2_large", "dinov2_giant"):
+            from defaults.models import DINOv2Classifier
+            model = DINOv2Classifier(self.model_params)
+        elif backbone in ("clip_vitl14", "biomedclip"):
+            from defaults.models import CLIPVisionClassifier
+            model = CLIPVisionClassifier(self.model_params)
+        elif backbone in ("convnext_base", "convnext_large"):
+            from defaults.models import ConvNeXtClassifier
+            model = ConvNeXtClassifier(self.model_params)
+        else:
+            model = Classifier(self.model_params)
         if self.transfer_learning_params.use_pretrained:
             pretrained_model_name = self.transfer_learning_params.pretrained_model_name
             pretrained_path       = self.transfer_learning_params.pretrained_path

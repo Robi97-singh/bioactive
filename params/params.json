@@ -1,198 +1,510 @@
 {
-"dataset_params" : {"dataset": "BioAct",
-                    "data_location" : "/path/to/images/",
-                    "dataset_csv_path" : "/path/to/data_csv/",
-                    "assays" : ["688128", "688238", "688360", "688546", "688549", "688612", "688687", "688812", "688816", "736947", "737187", "737287", "737344", "752347", "752407", "752434", "752493", "752563", "752590", "752594", "845045", "845102", "845164", "845169", "845173", "845177", "845196", "954338", "1495346"],
-                    "data_split_numbers" : {"train":[0,1,2,3],"val":[4],"test":[5]},
-                    "train_transforms" : {"Resize" : {"apply" : false,
-                                                      "height" : 270,
-                                                      "width" : 270},
-                                        
-                                        "CenterCrop": {"apply" : false,
-                                                      "height" : 224,
-                                                      "width" : 224}, 
-                                        
-                                        "Normalize": true,
-                                        
-                                        "VerticalFlip" : {"apply" : true,
-                                                            "p" : 0.5},
-                                          
-                                        "HorizontalFlip" : {"apply" : true,
-                                                            "p" : 0.5},
-                                          
-                                        "RandomRotation" : {"apply" : false,
-                                                            "angle" : 5,
-                                                           "p" : 0.5}, 
-                                          
-                                        "RandomGrayscale" : {"apply" : false,
-                                                                "p" : 0.2}, 
-                                        
-                                        "RandomCrop": {"apply" : true,
-                                                      "height" : 448,
-                                                      "width" : 448,
-                                                      "padding" : 0,
-                                                      "p" : 1.0}, 
-                                        
-                                        "ColorJitter" : {"apply" : false,
-                                                        "brightness" : 0.8,
-                                                        "contrast" : 0.8,
-                                                        "saturation" : 0.8,
-                                                        "hue" : 0.2,
-                                                        "p" : 0.8},
-                                          
-                                        "RandomPerspective" : {"apply" : false,
-                                                            "distortion_scale" : 0.2,
-                                                              "p" : 0.5}, 
-    
-                                        "RandomAffine" : {"apply" : false,
-                                                              "degrees" : 5,
-                                                              "translate" : [0.1, 0.3], 
-                                                              "scale" : [0.1, 3.3],
-                                                             "shear" : 0.2,
-                                                             "p" : 0.5},
-                                          
-                                        "RandomErasing" : {"apply" : false,
-                                                              "scale" : [0.02, 0.33],
-                                                              "ratio" : [0.3, 3.3], 
-                                                              "value" : 0,
-                                                              "p" : 0.5},
-                                          
-                                        "RandomGaussianBlur" : {"apply" : false,
-                                                              "radius_min" : 0.1,
-                                                              "radius_max" : 2.0, 
-                                                              "p" : 0.2},
-                                          
-                                        "RandomSolarize" : {"apply" : false,
-                                                            "threshold" : 128,
-                                                            "p" : 0.2},                                        
-                                          
-                                        "RandomResizedCrop" : {"apply" : false,
-                                                                 "size" : 448, 
-                                                                 "scale" : [0.75, 0.90]},
-                                        
-                                        "RandomShiftColor" : {"apply" : true},                         
-                                          
-                                        "MultiCrop" : {"apply" : false,
-                                                              "n_crops" : [2, 6],
-                                                              "sizes" : [224, 96],
-                                                              "scales" : [[0.4, 1.0], [0.05, 0.4]]}                                          
-                                         },
-                  
-                    "val_transforms" : {"Resize" : {"apply" : false,
-                                                      "height" : 270,
-                                                      "width" : 270},
-                                        
-                                        "CenterCrop": {"apply" : true,
-                                                      "height" : 448,
-                                                      "width" : 448}, 
-                                        
-                                        "Normalize": true                                        
-                                         },
-                  
-                    "test_transforms" : {"Resize" : {"apply" : false,
-                                                      "height" : 270,
-                                                      "width" : 270},
-                                        
-                                        "CenterCrop": {"apply" : true,
-                                                      "height" : 448,
-                                                      "width" : 448}, 
-                                        
-                                        "Normalize": true                                       
-                                         }
-                  },
-
-"dataloader_params" : {"trainloader" : {"batch_size" : 64, 
-                                        "num_workers" : 12,
-                                        "prefetch_factor" : 4,
-                                        "shuffle": true, 
-                                        "pin_memory" : true, 
-                                        "drop_last" : true, 
-                                        "persistent_workers" : true},
-                       "valloader" : {"batch_size" : 64, 
-                                        "num_workers" : 8,
-                                        "prefetch_factor" : 4,
-                                        "shuffle": false, 
-                                        "pin_memory" : true, 
-                                        "drop_last" : true, 
-                                        "persistent_workers" : true},
-                       "testloader" : {"batch_size" : 64, 
-                                        "num_workers" : 12,
-                                        "prefetch_factor" : 4,
-                                        "shuffle": false, 
-                                        "pin_memory" : true, 
-                                        "drop_last" : false, 
-                                        "persistent_workers" : false}
-                  },
-    
-"model_params" : {"backbone_type": "resnet50",
-                  "cnn_params" : {"pretrained_type" : "supervised"},                  
-                  "pretrained" : true,                  
-                  "freeze_backbone" : false
-                  },
-    
-"optimization_params" : {
-    "default" : {"optimizer" : {
-                    "type" : "SGD",
-                    "autoscale_lr": false,        
-                    "params" : {"lr" : 1e-3,
-                                "weight_decay" : 1e-4,
-                                "momentum" : 0.9}
-                            },
-                "LARS_params" : {"use": false,
-                                "batch_act_thresh" : 256,
-                                "eps" : 1e-8,
-                                "trust_coef" : 0.001},
-                "scheduler" : {
-                    "type" : ["LinearWarmup", "ReduceLROnPlateau"],
-                    "params" : {"ReduceLROnPlateau" : {"mode" : "max",
-                                                    "factor" : 0.1,
-                                                    "patience" : 6, 
-                                                    "verbose" : true},
-                                "OneCycleLR" : {"anneal_strategy" : "cos",
-                                               "final_div_factor": 1e-2},
-                                "MultiStepLR" : {"milestones": [20,30], 
-                                                 "gamma" : 0.1},
-                                "CosineAnnealingLR" : {"eta_min":1e-5}, 
-                                "LinearWarmup" : {"warmup_epochs":0,
-                                                  "warmup_iters":5000}                                   
-                               }
-    
-                            }
-                   }  
+    "dataset_params": {
+        "dataset": "BioAct",
+        "data_location": "/mnt/ssd8/bioactive/src/data/images",
+        "dataset_csv_path": "/mnt/ssd8/bioactive/src/data/training.csv",
+        "assays": [
+            "Vascular endothelial growth factor receptor 2",
+            "Receptor-type tyrosine-protein kinase FLT3",
+            "Proto-oncogene tyrosine-protein kinase receptor Ret",
+            "Epidermal growth factor receptor",
+            "Tyrosine-protein kinase ABL1",
+            "5-hydroxytryptamine receptor 2C",
+            "Tyrosine-protein kinase Lck",
+            "5-hydroxytryptamine receptor 2B",
+            "Carbonic anhydrase 2",
+            "Carbonic anhydrase 9",
+            "D(2) dopamine receptor",
+            "Protein deacetylase HDAC6",
+            "Aurora kinase A",
+            "Tyrosine-protein kinase JAK3",
+            "5-hydroxytryptamine receptor 6",
+            "Carbonic anhydrase 12",
+            "Fibroblast growth factor receptor 1",
+            "Glycogen synthase kinase-3 beta",
+            "Proto-oncogene tyrosine-protein kinase Src",
+            "Tyrosine-protein kinase BTK",
+            "Tyrosine-protein kinase JAK2",
+            "Histamine H1 receptor",
+            "Mitogen-activated protein kinase 14",
+            "Tyrosine-protein kinase Fyn",
+            "Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit alpha isoform",
+            "5-hydroxytryptamine receptor 1A",
+            "Alpha-2C adrenergic receptor",
+            "Voltage-gated inwardly rectifying potassium channel KCNH2",
+            "Carbonic anhydrase 7",
+            "Alpha-1D adrenergic receptor",
+            "Alpha-2A adrenergic receptor",
+            "Sodium-dependent serotonin transporter",
+            "Alpha-2B adrenergic receptor",
+            "STE20-like serine/threonine-protein kinase",
+            "Carbonic anhydrase 1",
+            "Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit beta isoform",
+            "Phosphatidylinositol 4,5-bisphosphate 3-kinase catalytic subunit gamma isoform",
+            "Cyclin-dependent kinase 2",
+            "Focal adhesion kinase 1",
+            "Mitogen-activated protein kinase 8",
+            "Mitogen-activated protein kinase kinase kinase kinase 5",
+            "5-hydroxytryptamine receptor 7",
+            "Discoidin domain-containing receptor 2",
+            "D(4) dopamine receptor",
+            "Muscarinic acetylcholine receptor M1",
+            "Prostaglandin G/H synthase 2",
+            "Dual specificity protein kinase CLK1",
+            "Mitogen-activated protein kinase 10",
+            "Rho-associated protein kinase 1",
+            "Serine/threonine-protein kinase mTOR",
+            "Histone deacetylase 1",
+            "Sodium-dependent noradrenaline transporter",
+            "Receptor tyrosine-protein kinase erbB-2",
+            "Ribosomal protein S6 kinase alpha-3",
+            "Carbonic anhydrase 14",
+            "D(1A) dopamine receptor",
+            "Glycogen synthase kinase-3 alpha",
+            "Casein kinase I isoform delta",
+            "Cyclin-dependent kinase 1",
+            "Cytochrome P450 1A2",
+            "Histone deacetylase 3",
+            "Tyrosine-protein kinase SYK",
+            "Dual specificity mitogen-activated protein kinase kinase 1",
+            "Histone deacetylase 2",
+            "Muscarinic acetylcholine receptor M5",
+            "Serine/threonine-protein kinase 10",
+            "Serine/threonine-protein kinase pim-1",
+            "Cytochrome P450 2D6",
+            "Insulin-like growth factor 1 receptor",
+            "Protein-tyrosine kinase 2-beta",
+            "Bromodomain-containing protein 4",
+            "Carbonic anhydrase 5A, mitochondrial",
+            "cAMP-dependent protein kinase catalytic subunit alpha",
+            "5'-AMP-activated protein kinase catalytic subunit alpha-1",
+            "Acetylcholinesterase",
+            "Carbonic anhydrase 6",
+            "Cyclin-dependent kinase 5",
+            "Interleukin-1 receptor-associated kinase 4",
+            "Carbonic anhydrase 4",
+            "Cytochrome P450 3A4",
+            "Adenosine receptor A2a",
+            "Casein kinase I isoform alpha",
+            "Prostaglandin G/H synthase 1",
+            "Tyrosine-protein kinase HCK",
+            "Carbonic anhydrase 5B, mitochondrial",
+            "Mitogen-activated protein kinase 1",
+            "Poly [ADP-ribose] polymerase 1",
+            "Angiopoietin-1 receptor",
+            "Prothrombin",
+            "Aromatase",
+            "Amine oxidase [flavin-containing] A",
+            "BMP-2-inducible protein kinase",
+            "Cytochrome P450 1B1",
+            "Cytochrome P450 2C9",
+            "Sodium-dependent dopamine transporter",
+            "Amine oxidase [flavin-containing] B",
+            "DNA-dependent protein kinase catalytic subunit",
+            "Cytochrome P450 2C19",
+            "Histone deacetylase 8",
+            "Ribosomal protein S6 kinase alpha-1",
+            "Cannabinoid receptor 1",
+            "Estrogen receptor beta",
+            "RAC-alpha serine/threonine-protein kinase",
+            "Serine/threonine-protein kinase Chk1",
+            "Serine/threonine-protein kinase PAK 4",
+            "Indoleamine 2,3-dioxygenase 1",
+            "Serine/threonine-protein kinase 16",
+            "Serine/threonine-protein kinase PLK1",
+            "3',5'-cyclic-AMP phosphodiesterase 4D",
+            "Adenosine receptor A3",
+            "Aldo-keto reductase family 1 member C3",
+            "Broad substrate specificity ATP-binding cassette transporter ABCG2",
+            "Heat shock protein HSP 90-alpha",
+            "Ephrin type-A receptor 4",
+            "Mu-type opioid receptor",
+            "Polyamine deacetylase HDAC10",
+            "Serine/threonine-protein kinase TAO3",
+            "Adenosine receptor A1",
+            "Androgen receptor",
+            "Cannabinoid receptor 2",
+            "Carbonic anhydrase 13",
+            "Phosphatidylinositol 4-kinase beta",
+            "3-phosphoinositide-dependent protein kinase 1",
+            "ATP-dependent translocase ABCB1",
+            "Bifunctional epoxide hydrolase 2",
+            "Heat shock protein HSP 90-beta",
+            "Histamine H2 receptor",
+            "Kappa-type opioid receptor",
+            "Polyunsaturated fatty acid 5-lipoxygenase",
+            "Serine/threonine-protein kinase N1",
+            "Estrogen receptor",
+            "Histone deacetylase 11",
+            "Induced myeloid leukemia cell differentiation protein Mcl-1",
+            "Inhibitor of nuclear factor kappa-B kinase subunit beta",
+            "Protein kinase C alpha type",
+            "cGMP-specific 3',5'-cyclic phosphodiesterase",
+            "5-hydroxytryptamine receptor 5A",
+            "Beta-3 adrenergic receptor",
+            "Egl nine homolog 1",
+            "Lysine-specific histone demethylase 1A",
+            "Peregrin",
+            "Sphingosine 1-phosphate receptor 1",
+            "Transthyretin",
+            "Endothelin-1 receptor",
+            "Histamine H4 receptor",
+            "Tumor necrosis factor",
+            "3',5'-cyclic-AMP phosphodiesterase 4B",
+            "Aryl hydrocarbon receptor",
+            "Membrane-associated tyrosine- and threonine-specific cdc2-inhibitory kinase",
+            "Peroxisome proliferator-activated receptor delta",
+            "Serine/threonine-protein kinase PLK3",
+            "Sodium channel protein type 9 subunit alpha",
+            "Type-1 angiotensin II receptor",
+            "cAMP and cAMP-inhibited cGMP 3',5'-cyclic phosphodiesterase 10A",
+            "Adenosine receptor A2b",
+            "Aldo-keto reductase family 1 member B1",
+            "Bromodomain-containing protein 2",
+            "Delta-type opioid receptor",
+            "Dihydrofolate reductase",
+            "Interferon-induced, double-stranded RNA-activated protein kinase",
+            "Monoglyceride lipase",
+            "Nuclear receptor subfamily 1 group I member 2",
+            "Peroxisome proliferator-activated receptor alpha",
+            "Peroxisome proliferator-activated receptor gamma",
+            "Pyruvate kinase PKM",
+            "3',5'-cyclic-AMP phosphodiesterase 4A",
+            "CREB-binding protein",
+            "Fatty acid synthase",
+            "G-protein coupled receptor 35",
+            "Menin",
+            "Poly [ADP-ribose] polymerase 2",
+            "Sodium channel protein type 5 subunit alpha",
+            "Xanthine dehydrogenase/oxidase",
+            "72 kDa type IV collagenase",
+            "Aldehyde dehydrogenase, mitochondrial",
+            "Bile acid receptor",
+            "Carbonic anhydrase 3",
+            "Fatty-acid amide hydrolase 1",
+            "G-protein coupled receptor 55",
+            "Matrix metalloproteinase-9",
+            "Multidrug and toxin extrusion protein 1",
+            "Polyunsaturated fatty acid lipoxygenase ALOX15",
+            "Serine/threonine-protein kinase PAK 1",
+            "Trace amine-associated receptor 1",
+            "Transient receptor potential cation channel subfamily A member 1",
+            "Tyrosine-protein phosphatase non-receptor type 1",
+            "Aldo-keto reductase family 1 member C2",
+            "Amyloid-beta precursor protein",
+            "Bcl-2-like protein 1",
+            "Beta-secretase 1",
+            "Cholinesterase",
+            "Cystic fibrosis transmembrane conductance regulator",
+            "Death-associated protein kinase 1",
+            "E3 ubiquitin-protein ligase Mdm2",
+            "Methionine aminopeptidase 2",
+            "NAD-dependent protein deacetylase sirtuin-1",
+            "Nitric oxide synthase 1",
+            "Nitric oxide synthase, inducible",
+            "Palmitoleoyl-protein carboxylesterase NOTUM",
+            "Polyunsaturated fatty acid lipoxygenase ALOX12",
+            "Prostaglandin E synthase",
+            "Signal transducer and activator of transcription 1-alpha/beta",
+            "Signal transducer and activator of transcription 3",
+            "Solute carrier family 22 member 2",
+            "Transient receptor potential cation channel subfamily M member 8",
+            "Aldo-keto reductase family 1 member C1",
+            "Aspartyl/asparaginyl beta-hydroxylase",
+            "Calmodulin-1",
+            "Cytochrome P450 2C8",
+            "Cytochrome P450 2J2",
+            "Gamma-butyrobetaine dioxygenase",
+            "Glutamate receptor ionotropic, NMDA 2B",
+            "High affinity 3',5'-cyclic-AMP phosphodiesterase 7A",
+            "Leukotriene A-4 hydrolase",
+            "Macrophage migration inhibitory factor",
+            "Multidrug and toxin extrusion protein 2",
+            "NACHT, LRR and PYD domains-containing protein 3",
+            "NAD-dependent protein deacetylase sirtuin-2",
+            "Neuropeptide Y receptor type 2",
+            "Neutrophil elastase",
+            "Nucleotide-binding oligomerization domain-containing protein 2",
+            "Sodium channel protein type 2 subunit alpha",
+            "Solute carrier organic anion transporter family member 1B1",
+            "Tyrosyl-DNA phosphodiesterase 2",
+            "X-box-binding protein 1"
+        ],
+        "data_split_numbers": {
+            "train": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "val": [
+                4
+            ],
+            "test": [
+                5
+            ]
+        },
+        "train_transforms": {
+            "Resize": {
+                "apply": false,
+                "height": 270,
+                "width": 270
             },
-
-        
-
-"training_params" : {"model_name" : "model_name",    
-                    "epochs" : 150,            
-                    "val_every" : 1.0,        
-                    "log_every" : 30,           
-                    "save_best_model": true,                     
-                    "log_embeddings" : true,
-                    "knn_eval": false, 
-                    "grad_clipping" : 1.0,
-                    "restore_session" : false,
-                    "restore_only_model": false,
-                    "use_tensorboard" : false,
-                    "use_mixed_precision" : false,                     
-                    "save_dir" : "/path/to/store/model/"                     
-                  },
-    
-"system_params" : {"use_all_GPUs" : true,
-                   "which_GPUs": "",
-                   "use_GPU" : true
-                  },
-    
-"log_params" : {"project_name" : "project_name",
-                "run_name": "DEFINED_BY_MODEL_NAME"
-                },
-    
-
-"transfer_learning_params" : {
-                    "use_pretrained" : false,
-                    "pretrained_model_name" : "",
-                    "pretrained_path" : "",
-                    "load_full_model" : false
-                 }
+            "CenterCrop": {
+                "apply": false,
+                "height": 448,
+                "width": 448
+            },
+            "Normalize": true,
+            "VerticalFlip": {
+                "apply": true,
+                "p": 0.5
+            },
+            "HorizontalFlip": {
+                "apply": true,
+                "p": 0.5
+            },
+            "RandomRotation": {
+                "apply": false,
+                "angle": 5,
+                "p": 0.5
+            },
+            "RandomGrayscale": {
+                "apply": false,
+                "p": 0.2
+            },
+            "RandomCrop": {
+                "apply": true,
+                "height": 448,
+                "width": 448,
+                "padding": 0,
+                "p": 1.0
+            },
+            "ColorJitter": {
+                "apply": false,
+                "brightness": 0.8,
+                "contrast": 0.8,
+                "saturation": 0.8,
+                "hue": 0.2,
+                "p": 0.8
+            },
+            "RandomPerspective": {
+                "apply": false,
+                "distortion_scale": 0.2,
+                "p": 0.5
+            },
+            "RandomAffine": {
+                "apply": false,
+                "degrees": 5,
+                "translate": [
+                    0.1,
+                    0.3
+                ],
+                "scale": [
+                    0.1,
+                    3.3
+                ],
+                "shear": 0.2,
+                "p": 0.5
+            },
+            "RandomErasing": {
+                "apply": false,
+                "scale": [
+                    0.02,
+                    0.33
+                ],
+                "ratio": [
+                    0.3,
+                    3.3
+                ],
+                "value": 0,
+                "p": 0.5
+            },
+            "RandomGaussianBlur": {
+                "apply": false,
+                "radius_min": 0.1,
+                "radius_max": 2.0,
+                "p": 0.2
+            },
+            "RandomSolarize": {
+                "apply": false,
+                "threshold": 128,
+                "p": 0.2
+            },
+            "RandomResizedCrop": {
+                "apply": false,
+                "size": 448,
+                "scale": [
+                    0.75,
+                    0.9
+                ]
+            },
+            "RandomShiftColor": {
+                "apply": true
+            },
+            "MultiCrop": {
+                "apply": false,
+                "n_crops": [
+                    2,
+                    6
+                ],
+                "sizes": [
+                    224,
+                    96
+                ],
+                "scales": [
+                    [
+                        0.4,
+                        1.0
+                    ],
+                    [
+                        0.05,
+                        0.4
+                    ]
+                ]
+            }
+        },
+        "val_transforms": {
+            "Resize": {
+                "apply": false,
+                "height": 270,
+                "width": 270
+            },
+            "CenterCrop": {
+                "apply": true,
+                "height": 448,
+                "width": 448
+            },
+            "Normalize": true
+        },
+        "test_transforms": {
+            "Resize": {
+                "apply": false,
+                "height": 270,
+                "width": 270
+            },
+            "CenterCrop": {
+                "apply": true,
+                "height": 448,
+                "width": 448
+            },
+            "Normalize": true
+        }
+    },
+    "dataloader_params": {
+        "trainloader": {
+            "batch_size": 64,
+            "num_workers": 4,
+            "prefetch_factor": 2,
+            "shuffle": true,
+            "pin_memory": true,
+            "drop_last": true,
+            "persistent_workers": false
+        },
+        "valloader": {
+            "batch_size": 64,
+            "num_workers": 4,
+            "prefetch_factor": 2,
+            "shuffle": false,
+            "pin_memory": true,
+            "drop_last": false,
+            "persistent_workers": false
+        },
+        "testloader": {
+            "batch_size": 64,
+            "num_workers": 4,
+            "prefetch_factor": 2,
+            "shuffle": false,
+            "pin_memory": true,
+            "drop_last": false,
+            "persistent_workers": true
+        }
+    },
+    "model_params": {
+        "backbone_type": "resnet50",
+        "cnn_params": {
+            "pretrained_type": "supervised"
+        },
+        "pretrained": true,
+        "freeze_backbone": false
+    },
+    "optimization_params": {
+        "default": {
+            "optimizer": {
+                "type": "SGD",
+                "autoscale_lr": false,
+                "params": {
+                    "lr": 0.001,
+                    "weight_decay": 0.0001,
+                    "momentum": 0.9
+                }
+            },
+            "LARS_params": {
+                "use": false,
+                "batch_act_thresh": 256,
+                "eps": 1e-08,
+                "trust_coef": 0.001
+            },
+            "scheduler": {
+                "type": [
+                    "ReduceLROnPlateau"
+                ],
+                "params": {
+                    "ReduceLROnPlateau": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10
+                    },
+                    "OneCycleLR": {
+                        "anneal_strategy": "cos",
+                        "final_div_factor": 0.01
+                    },
+                    "MultiStepLR": {
+                        "milestones": [
+                            10,
+                            15
+                        ],
+                        "gamma": 0.1
+                    },
+                    "CosineAnnealingLR": {
+                        "eta_min": 1e-05
+                    },
+                    "LinearWarmup": {
+                        "warmup_epochs": 0,
+                        "warmup_iters": 0
+                    }
+                }
+            }
+        }
+    },
+    "training_params": {
+        "model_name": "bioact_resnet50_full_run",
+        "epochs": 100,
+        "val_every": 5.0,
+        "log_every": 30,
+        "save_best_model": true,
+        "log_embeddings": false,
+        "knn_eval": false,
+        "grad_clipping": 1.0,
+        "restore_session": false,
+        "restore_only_model": false,
+        "use_tensorboard": false,
+        "use_mixed_precision": true,
+        "save_dir": "/mnt/ssd8/bioactive/src/models/"
+    },
+    "system_params": {
+        "use_all_GPUs": false,
+        "which_GPUs": "0",
+        "use_GPU": true
+    },
+    "log_params": {
+        "project_name": "bioactive_full_run",
+        "run_name": "DEFINED_BY_MODEL_NAME"
+    },
+    "transfer_learning_params": {
+        "use_pretrained": false,
+        "pretrained_model_name": "",
+        "pretrained_path": "",
+        "load_full_model": false
+    }
 }
-

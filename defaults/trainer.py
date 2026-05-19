@@ -1,11 +1,18 @@
 import wandb
 import defaults
+import datetime
+import sys
+import json
 import torchvision
 from defaults.bases import *
 import matplotlib.pyplot as plt
 from .wrappers import DefaultWrapper, dist
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data.distributed import DistributedSampler as DS
+
+def log_print(msg):
+    print(msg, flush=True)
+    sys.stdout.flush()
 
         
 class Trainer(BaseTrainer):
@@ -53,6 +60,8 @@ class Trainer(BaseTrainer):
         if not self.is_grid_search:
             self.load_session(self.restore_only_model)
         self.print_train_init()
+        if self.is_rank0:
+            self._log_hyperparameters()
         
         n_classes = self.trainloader.dataset.n_classes
         metric = self.metric_fn(n_classes, self.trainloader.dataset.int_to_labels, mode="train")
@@ -74,12 +83,16 @@ class Trainer(BaseTrainer):
                 if self.val_every != np.inf:
                     if self.iters % int(self.val_every * self.epoch_steps) == 0: 
                         synchronize()
-                        self.epoch_step()  
+                        self.epoch_step()
+                        if self.is_rank0:
+                            self._log_epoch_summary()
                         self.model.train()
+                        if getattr(self, "should_stop", False):
+                            break
                 synchronize()
 
 
-                if it == 0:
+                if False:  # VLM-safe: disabled cosmetic wandb logging
                     imgs, l_, u_ = batch
                     grid = True
                     if grid:
@@ -104,7 +117,10 @@ class Trainer(BaseTrainer):
                 
             if not self.save_best_model and not self.is_grid_search:
                 self.best_model = model_to_CPU_state(self.model)   
-                self.save_session()                         
+                self.save_session()
+            if getattr(self, "should_stop", False):
+                print("EARLY STOPPING: exiting at epoch %d" % self.epoch)
+                break                         
                 
         if self.is_rank0:         
             print(" ==> Training done")
@@ -250,8 +266,14 @@ class Trainer(BaseTrainer):
                 self.logging({'val_loss': round(self.val_loss, 5)})
             if self.val_target > self.best_val_target:
                 self.best_val_target = self.val_target
+                self.patience_counter = 0
                 if self.save_best_model:
                     self.best_model = model_to_CPU_state(self.model)
+            else:
+                self.patience_counter = getattr(self, "patience_counter", 0) + 1
+                if getattr(self, "early_stopping", False) and self.patience_counter >= getattr(self, "early_stopping_patience", 8):
+                    self.should_stop = True
+                    print("EARLY STOPPING: no val improvement for %d checks. Best=%.4f" % (self.patience_counter, self.best_val_target))
             if self.val_loss <= self.best_val_loss:
                 self.best_val_loss = self.val_loss
             if not self.save_best_model:
@@ -336,6 +358,98 @@ class Trainer(BaseTrainer):
         self.model.train()
         
         
+
+    def _log_hyperparameters(self):
+        p = self.parameters
+        tp = p.training_params
+        dp = p.dataset_params
+        sep = "=" * 70
+        log_print(f"\n{sep}")
+        log_print(f"  PROJECT BIOACTIVE — ResNet50 Training")
+        log_print(f"  Started : {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        log_print(sep)
+        log_print(f"  MODEL")
+        log_print(f"    Backbone        : {p.model_params['backbone_type']}")
+        log_print(f"    Pretrained      : {p.model_params['pretrained']}")
+        log_print(f"    Num targets     : {len(dp['assays'])}")
+        log_print(sep)
+        log_print(f"  TRAINING")
+        log_print(f"    Epochs          : {tp['epochs']}")
+        log_print(f"    Batch size      : {p.dataloader_params['trainloader']['batch_size']}")
+        log_print(f"    Num workers     : {p.dataloader_params['trainloader']['num_workers']}")
+        log_print(f"    Mixed precision : {tp['use_mixed_precision']}")
+        log_print(f"    Val every       : {tp['val_every']} epoch(s)")
+        log_print(f"    Restore session : {tp['restore_session']}")
+        log_print(sep)
+        log_print(f"  OPTIMIZER")
+        opt = p.optimization_params['default']['optimizer']
+        log_print(f"    Type            : {opt['type']}")
+        log_print(f"    Learning rate   : {opt['params']['lr']}")
+        if 'momentum' in opt['params']: log_print(f"    Momentum        : {opt['params']['momentum']}")
+        log_print(f"    Weight decay    : {opt['params']['weight_decay']}")
+        log_print(sep)
+        log_print(f"  DATA")
+        log_print(f"    CSV             : {dp['dataset_csv_path']}")
+        log_print(f"    Images          : {dp['data_location']}")
+        log_print(f"    Crop            : {dp['train_transforms']['RandomCrop']['height']}x{dp['train_transforms']['RandomCrop']['width']}")
+        log_print(f"    Model name      : {tp['model_name']}")
+        log_print(f"    Save dir        : {tp['save_dir']}")
+        log_print(sep + "\n")
+
+    def _log_epoch_summary(self):
+        sep = "-" * 70
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        epochs_done = self.epoch - self.epoch0
+        epochs_left = self.epochs - epochs_done
+        log_print(f"\n{sep}")
+        log_print(f"  EPOCH {self.epoch} SUMMARY  [{now}]")
+        log_print(f"    Current LR      : {self.get_lr():.8f}")
+        log_print(f"    Val ROC-AUC     : {self.val_target:.6f}")
+        log_print(f"    Best ROC-AUC    : {self.best_val_target:.6f}")
+        log_print(f"    Val Loss        : {self.val_loss:.6f}")
+        log_print(f"    Iters so far    : {self.iters}")
+        log_print(f"    Epochs done     : {epochs_done}/{self.epochs}")
+        log_print(f"    Epochs left     : {epochs_left}")
+        log_print(sep + "\n")
+        # Save to JSON metrics file
+        self._save_metrics_json(now, epochs_done)
+
+    def _save_metrics_json(self, timestamp, epochs_done):
+        import os
+        metrics_path = os.path.join(
+            self.save_dir, 'checkpoints',
+            self.model_name + '_metrics.json'
+        )
+        # Load existing or create new
+        if os.path.exists(metrics_path):
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+        else:
+            metrics = {
+                'model_name': self.model_name,
+                'total_epochs': self.epochs,
+                'epochs': []
+            }
+        # Append current epoch
+        metrics['epochs'].append({
+            'epoch': self.epoch,
+            'timestamp': timestamp,
+            'val_roc_auc': round(self.val_target, 6),
+            'best_roc_auc': round(self.best_val_target, 6),
+            'val_loss': round(self.val_loss, 6),
+            'best_val_loss': round(self.best_val_loss, 6),
+            'learning_rate': self.get_lr(),
+            'iters': self.iters,
+            'epochs_done': epochs_done,
+            'epochs_left': self.epochs - epochs_done
+        })
+        try:
+            with open(metrics_path, 'w') as f:
+                json.dump(metrics, f, indent=2)
+            log_print(f"  Metrics saved -> {metrics_path}")
+        except Exception as e:
+            log_print(f"  WARNING: Could not save metrics JSON: {e}")
+
     def build_umaps(self, feature_bank, dataloader, labels = None, mode='', wandb_logging=True):
         #if not dataloader.dataset.is_multiclass: return
         print("MAKE UMAP")

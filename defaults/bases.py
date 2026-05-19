@@ -596,6 +596,8 @@ class BaseTrainer:
             
             self.iters = checkpoint['iters']
             self.epoch = checkpoint['epoch']
+            self.epoch0 = checkpoint['epoch']
+            self.best_val_target = checkpoint.get('best_val_target', 0.)
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             for state in self.optimizer.state.values():
                 for k, v in state.items():
@@ -625,7 +627,8 @@ class BaseTrainer:
                 print("Saving model as {}".format(os.path.basename(self.model_path)) )
             state = {'iters': self.iters, 'state_dict': self.best_model, 'original_state' : self.org_model_state,
                      'optimizer': opimizer_to_CPU_state(self.optimizer), 'epoch': self.epoch,
-                    'parameters' : self.parameters}
+                    'parameters' : self.parameters, 'best_val_target': self.best_val_target,
+                    'best_val_loss': self.best_val_loss}
             if self.scaler is not None:
                 state['scaler'] = self.scaler.state_dict()            
             torch.save(state, self.model_path)

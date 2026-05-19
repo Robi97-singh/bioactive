@@ -106,3 +106,200 @@ class Classifier(BaseModel):
                 
         else:
             raise NotImplementedError("channel modification is not implemented for {}".format(backbone_type))
+
+
+class DINOv2Classifier(BaseModel):
+    """DINOv2 backbone with 5-channel patch embedding adaptation."""
+    
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+        
+        from transformers import AutoModel
+        model_id = {
+            'dinov2_base':  'facebook/dinov2-base',
+            'dinov2_large': 'facebook/dinov2-large',
+            'dinov2_giant': 'facebook/dinov2-giant',
+        }[self.backbone_type]
+        
+        print(f"Loading {model_id}...")
+        self.backbone = AutoModel.from_pretrained(model_id)
+        
+        # Get embedding dimension
+        hidden_size = self.backbone.config.hidden_size
+        
+        # Adapt patch embedding from 3 to 5 channels
+        self._adapt_patch_embedding()
+        
+        # Classification head
+        self.fc = nn.Linear(hidden_size, self.n_classes)
+        
+        if self.freeze_backbone:
+            self.freeze_submodel(self.backbone)
+        
+        print(f"  Params: {sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def _adapt_patch_embedding(self):
+        """Adapt patch embedding from 3 to 5 channels using weight averaging."""
+        if self.img_channels == 3:
+            return
+        
+        proj = self.backbone.embeddings.patch_embeddings.projection
+        old_weight = proj.weight.data  # [embed_dim, 3, patch_size, patch_size]
+        
+        # Repeat and slice to get 5-channel weights
+        new_weight = old_weight.repeat(1, 2, 1, 1)[:, :self.img_channels, :, :]
+        
+        # Create new conv with 5 input channels
+        new_proj = nn.Conv2d(
+            self.img_channels,
+            proj.out_channels,
+            kernel_size=proj.kernel_size,
+            stride=proj.stride,
+            padding=proj.padding,
+            bias=proj.bias is not None
+        )
+        new_proj.weight.data = new_weight
+        if proj.bias is not None:
+            new_proj.bias.data = proj.bias.data
+            
+        self.backbone.embeddings.patch_embeddings.projection = new_proj
+        self.backbone.config.num_channels = self.img_channels
+        self.backbone.embeddings.patch_embeddings.num_channels = self.img_channels
+        print(f"  Adapted patch embedding to {self.img_channels} channels")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            outputs = self.backbone(x)
+            # Use CLS token as embedding
+            x_emb = outputs.last_hidden_state[:, 0, :]
+            x_out = self.fc(x_emb)
+            
+            if return_embedding:
+                return x_out, x_emb
+            return x_out
+
+
+class CLIPVisionClassifier(BaseModel):
+    """CLIP/BiomedCLIP vision encoder with 5-channel adaptation."""
+    
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+        
+        import open_clip
+        
+        model_configs = {
+            'clip_vitl14':  ('ViT-L-14', 'openai'),
+            'biomedclip':   ('hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224', None),
+        }
+        
+        model_id, pretrained = model_configs[self.backbone_type]
+        print(f"Loading {model_id}...")
+        
+        if pretrained:
+            full_model, _, _ = open_clip.create_model_and_transforms(model_id, pretrained=pretrained)
+        else:
+            full_model, _, _ = open_clip.create_model_and_transforms(model_id)
+        
+        self.backbone = full_model.visual
+        
+        # Get output dimension
+        embed_dim = self.backbone.output_dim if hasattr(self.backbone, 'output_dim') else self.backbone.head.in_features
+        
+        # Adapt first conv to 5 channels
+        self._adapt_first_conv()
+        
+        # Classification head
+        self.fc = nn.Linear(embed_dim, self.n_classes)
+        
+        if self.freeze_backbone:
+            self.freeze_submodel(self.backbone)
+            
+        print(f"  Params: {sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def _adapt_first_conv(self):
+        """Adapt first conv layer from 3 to 5 channels."""
+        if self.img_channels == 3:
+            return
+            
+        # Find first conv layer in vision transformer patch embedding
+        conv = self.backbone.conv1 if hasattr(self.backbone, 'conv1') else \
+               self.backbone.trunk.patch_embed.proj
+               
+        old_weight = conv.weight.data
+        new_weight = old_weight.repeat(1, 2, 1, 1)[:, :self.img_channels, :, :]
+        
+        new_conv = nn.Conv2d(
+            self.img_channels,
+            conv.out_channels,
+            kernel_size=conv.kernel_size,
+            stride=conv.stride,
+            padding=conv.padding,
+            bias=conv.bias is not None
+        )
+        new_conv.weight.data = new_weight
+        if conv.bias is not None:
+            new_conv.bias.data = conv.bias.data
+            
+        if hasattr(self.backbone, 'conv1'):
+            self.backbone.conv1 = new_conv
+        else:
+            self.backbone.trunk.patch_embed.proj = new_conv
+            
+        print(f"  Adapted first conv to {self.img_channels} channels")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            x_emb = self.backbone(x)
+            x_out = self.fc(x_emb)
+            
+            if return_embedding:
+                return x_out, x_emb
+            return x_out
+
+
+class ConvNeXtClassifier(BaseModel):
+    """ConvNeXt backbone with 5-channel adaptation using timm."""
+    
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+        
+        import timm
+        
+        model_configs = {
+            'convnext_base':  'convnext_base.fb_in22k',
+            'convnext_large': 'convnext_large.fb_in22k',
+        }
+        
+        model_id = model_configs[self.backbone_type]
+        print(f"Loading {model_id}...")
+        
+        self.backbone = timm.create_model(
+            model_id,
+            pretrained=self.pretrained,
+            num_classes=0,  # Remove classifier head
+            in_chans=self.img_channels  # timm handles channel adaptation natively
+        )
+        
+        # Get embedding dimension
+        embed_dim = self.backbone.num_features
+        
+        # Classification head
+        self.fc = nn.Linear(embed_dim, self.n_classes)
+        
+        if self.freeze_backbone:
+            self.freeze_submodel(self.backbone)
+            
+        print(f"  Adapted to {self.img_channels} channels")
+        print(f"  Params: {sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            x_emb = self.backbone(x)
+            x_out = self.fc(x_emb)
+            
+            if return_embedding:
+                return x_out, x_emb
+            return x_out

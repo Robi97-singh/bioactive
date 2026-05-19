@@ -111,6 +111,7 @@ class MultiLabelMaskClassificationMetrics:
 
         print(roc_auc, roc_auc_array)
 
+        labs_combined.to_csv("/mnt/ssd8/bioactive/src/data/test_labels.csv"); preds_combined.to_csv("/mnt/ssd8/bioactive/src/data/test_preds.csv"); print("SAVED test_labels.csv and test_preds.csv")
         return roc_auc, roc_auc_array, labs_combined, preds_combined
 
     # Calculate and report metrics
