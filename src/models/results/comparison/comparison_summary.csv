@@ -1,0 +1,5 @@
+,mean,median,ge0.70,lt0.50,paradigm,res,delta_vs_resnet,beats_resnet
+ResNet50,0.7019,0.7267,16,2,Supervised CNN,448,-0.0001,False
+DINOv2-Base,0.6604,0.6463,11,4,Self-supervised ViT,448,-0.0416,False
+CLIP ViT-L/14,0.6434,0.6318,10,5,Vision-Language,224,-0.0586,False
+BiomedCLIP,0.6045,0.6029,8,8,Vision-Language,224,-0.0975,False

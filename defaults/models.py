@@ -1,4 +1,5 @@
 import os
+import torch
 
 from .bases import *
 from torch.cuda.amp import autocast
@@ -205,7 +206,10 @@ class CLIPVisionClassifier(BaseModel):
         self.backbone = full_model.visual
         
         # Get output dimension
-        embed_dim = self.backbone.output_dim if hasattr(self.backbone, 'output_dim') else self.backbone.head.in_features
+        import torch as _torch
+        _wt = self.backbone.training; self.backbone.eval()
+        with _torch.no_grad(): embed_dim = self.backbone(_torch.zeros(1, 3, 224, 224)).shape[-1]
+        self.backbone.train(_wt)
         
         # Adapt first conv to 5 channels
         self._adapt_first_conv()
@@ -251,6 +255,7 @@ class CLIPVisionClassifier(BaseModel):
 
     def forward(self, x, return_embedding=False):
         with autocast(self.use_mixed_precision):
+            x = nn.functional.interpolate(x, size=224, mode="bilinear", align_corners=False)
             x_emb = self.backbone(x)
             x_out = self.fc(x_emb)
             

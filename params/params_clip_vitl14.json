@@ -1,0 +1,315 @@
+{
+  "dataset_params": {
+    "dataset": "BioAct",
+    "data_location": "/mnt/ssd8/bioactive/src/data/images",
+    "dataset_csv_path": "/mnt/ssd8/bioactive/src/data/training_paper.csv",
+    "assays": [
+      "688128",
+      "688238",
+      "688360",
+      "688546",
+      "688549",
+      "688612",
+      "688687",
+      "688812",
+      "688816",
+      "736947",
+      "737187",
+      "737287",
+      "737344",
+      "752347",
+      "752407",
+      "752434",
+      "752493",
+      "752563",
+      "752590",
+      "752594",
+      "845045",
+      "845102",
+      "845164",
+      "845169",
+      "845173",
+      "845177",
+      "845196",
+      "954338",
+      "1495346"
+    ],
+    "data_split_numbers": {
+      "train": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "val": [
+        4
+      ],
+      "test": [
+        5
+      ]
+    },
+    "train_transforms": {
+      "Resize": {
+        "apply": false,
+        "height": 270,
+        "width": 270
+      },
+      "CenterCrop": {
+        "apply": false,
+        "height": 448,
+        "width": 448
+      },
+      "Normalize": true,
+      "VerticalFlip": {
+        "apply": true,
+        "p": 0.5
+      },
+      "HorizontalFlip": {
+        "apply": true,
+        "p": 0.5
+      },
+      "RandomRotation": {
+        "apply": false,
+        "angle": 5,
+        "p": 0.5
+      },
+      "RandomGrayscale": {
+        "apply": false,
+        "p": 0.2
+      },
+      "RandomCrop": {
+        "apply": true,
+        "height": 448,
+        "width": 448,
+        "padding": 0,
+        "p": 1.0
+      },
+      "ColorJitter": {
+        "apply": false,
+        "brightness": 0.8,
+        "contrast": 0.8,
+        "saturation": 0.8,
+        "hue": 0.2,
+        "p": 0.8
+      },
+      "RandomPerspective": {
+        "apply": false,
+        "distortion_scale": 0.2,
+        "p": 0.5
+      },
+      "RandomAffine": {
+        "apply": false,
+        "degrees": 5,
+        "translate": [
+          0.1,
+          0.3
+        ],
+        "scale": [
+          0.1,
+          3.3
+        ],
+        "shear": 0.2,
+        "p": 0.5
+      },
+      "RandomErasing": {
+        "apply": false,
+        "scale": [
+          0.02,
+          0.33
+        ],
+        "ratio": [
+          0.3,
+          3.3
+        ],
+        "value": 0,
+        "p": 0.5
+      },
+      "RandomGaussianBlur": {
+        "apply": false,
+        "radius_min": 0.1,
+        "radius_max": 2.0,
+        "p": 0.2
+      },
+      "RandomSolarize": {
+        "apply": false,
+        "threshold": 128,
+        "p": 0.2
+      },
+      "RandomResizedCrop": {
+        "apply": false,
+        "size": 448,
+        "scale": [
+          0.75,
+          0.9
+        ]
+      },
+      "RandomShiftColor": {
+        "apply": true
+      },
+      "MultiCrop": {
+        "apply": false,
+        "n_crops": [
+          2,
+          6
+        ],
+        "sizes": [
+          224,
+          96
+        ],
+        "scales": [
+          [
+            0.4,
+            1.0
+          ],
+          [
+            0.05,
+            0.4
+          ]
+        ]
+      }
+    },
+    "val_transforms": {
+      "Resize": {
+        "apply": false,
+        "height": 270,
+        "width": 270
+      },
+      "CenterCrop": {
+        "apply": true,
+        "height": 448,
+        "width": 448
+      },
+      "Normalize": true
+    },
+    "test_transforms": {
+      "Resize": {
+        "apply": false,
+        "height": 270,
+        "width": 270
+      },
+      "CenterCrop": {
+        "apply": true,
+        "height": 448,
+        "width": 448
+      },
+      "Normalize": true
+    }
+  },
+  "dataloader_params": {
+    "trainloader": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "prefetch_factor": 2,
+      "shuffle": true,
+      "pin_memory": true,
+      "drop_last": true,
+      "persistent_workers": false
+    },
+    "valloader": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "prefetch_factor": 2,
+      "shuffle": false,
+      "pin_memory": true,
+      "drop_last": false,
+      "persistent_workers": false
+    },
+    "testloader": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "prefetch_factor": 2,
+      "shuffle": false,
+      "pin_memory": true,
+      "drop_last": false,
+      "persistent_workers": true
+    }
+  },
+  "model_params": {
+    "backbone_type": "clip_vitl14",
+    "cnn_params": {
+      "pretrained_type": "supervised"
+    },
+    "pretrained": true,
+    "freeze_backbone": false
+  },
+  "optimization_params": {
+    "default": {
+      "optimizer": {
+        "type": "AdamW",
+        "autoscale_lr": false,
+        "params": {
+          "lr": 0.0001,
+          "weight_decay": 0.05
+        }
+      },
+      "LARS_params": {
+        "use": false,
+        "batch_act_thresh": 256,
+        "eps": 1e-08,
+        "trust_coef": 0.001
+      },
+      "scheduler": {
+        "type": [
+          "ReduceLROnPlateau"
+        ],
+        "params": {
+          "ReduceLROnPlateau": {
+            "mode": "max",
+            "factor": 0.5,
+            "patience": 10
+          },
+          "OneCycleLR": {
+            "anneal_strategy": "cos",
+            "final_div_factor": 0.01
+          },
+          "MultiStepLR": {
+            "milestones": [
+              10,
+              15
+            ],
+            "gamma": 0.1
+          },
+          "CosineAnnealingLR": {
+            "eta_min": 1e-05
+          },
+          "LinearWarmup": {
+            "warmup_epochs": 0,
+            "warmup_iters": 0
+          }
+        }
+      }
+    }
+  },
+  "training_params": {
+    "model_name": "bioact_clip_vitl14",
+    "epochs": 100,
+    "val_every": 5.0,
+    "log_every": 30,
+    "save_best_model": true,
+    "early_stopping": true,
+    "early_stopping_patience": 8,
+    "log_embeddings": false,
+    "knn_eval": false,
+    "grad_clipping": 1.0,
+    "restore_session": false,
+    "restore_only_model": false,
+    "use_tensorboard": false,
+    "use_mixed_precision": true,
+    "save_dir": "/mnt/ssd8/bioactive/src/models/"
+  },
+  "system_params": {
+    "use_all_GPUs": false,
+    "which_GPUs": "0",
+    "use_GPU": true
+  },
+  "log_params": {
+    "project_name": "bioactive_full_run",
+    "run_name": "DEFINED_BY_MODEL_NAME"
+  },
+  "transfer_learning_params": {
+    "use_pretrained": false,
+    "pretrained_model_name": "",
+    "pretrained_path": "",
+    "load_full_model": false
+  }
+}

@@ -1,1 +1,36 @@
+# Data & large binaries
+src/data/images/
+src/data/*.csv
 src/models/checkpoints/
+src/models/
+*.pth
+*.pt
+*.ckpt
+checkpoints
+chembl/
+*.tar.gz
+
+# Environments and caches
+venv/
+.venv/
+model_cache/
+.cache/
+wandb/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+
+# Raw logs
+*.log
+wget-log*
+
+# Backups and scratch
+*.bak*
+*.MINE*
+*_GOOD*
+*.tmp
+
+# External reference
+paper_repo_reference/
