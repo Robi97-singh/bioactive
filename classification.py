@@ -16,6 +16,46 @@ from utils.launch import dist, launch, synchronize
 global debug
 
 
+
+MODEL_MAP = {
+    "resnet":     ("resnet50",        "bioact_resnet50"),
+    "dino":       ("dinov2_base",     "bioact_dinov2_base"),
+    "dino_large": ("dinov2_large",    "bioact_dinov2_large"),
+    "clip":       ("clip_vitl14",     "bioact_clip_vitl14"),
+    "biomedclip": ("biomedclip",      "bioact_biomedclip"),
+    "convnext":   ("convnext_base",   "bioact_convnext"),
+    "vit":        ("vit_b_16",        "bioact_vit_b16"),
+}
+
+def _apply_resolution(params, res):
+    dp = params['dataset_params']
+    for key in ('train_transforms', 'val_transforms', 'test_transforms'):
+        if key not in dp:
+            continue
+        t = dp[key]
+        if res == 224:
+            t.setdefault('Resize', {})
+            t['Resize']['apply'] = True
+            t['Resize']['height'] = 540
+            t['Resize']['width']  = 540
+            for crop in ('CenterCrop', 'RandomCrop'):
+                if crop in t and t[crop].get('apply'):
+                    t[crop]['height'] = 224
+                    t[crop]['width']  = 224
+        elif res == 448:
+            if 'Resize' in t:
+                t['Resize']['apply'] = False
+            for crop in ('CenterCrop', 'RandomCrop'):
+                if crop in t and t[crop].get('apply'):
+                    t[crop]['height'] = 448
+                    t[crop]['width']  = 448
+
+def _fold_splits(fold, n_folds=6):
+    val = (fold + 1) % n_folds
+    train = [f for f in range(n_folds) if f not in (fold, val)]
+    return {"train": train, "val": [val], "test": [fold]}
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='The main takes as \
                              argument the parameters dictionary from a json file')
@@ -47,6 +87,13 @@ def parse_arguments():
     parser.add_argument('--knn', action='store_true', default=False, help='Flag for turning on the KNN eval')        
     
 
+    parser.add_argument('--model', type=str, choices=list(MODEL_MAP.keys()),
+                        help='Select model by friendly name (sets backbone_type + model_name)')
+    parser.add_argument('--res', type=int, choices=[224, 448],
+                        help='Input resolution. 448=crop448 (paper). 224=resize540+crop224 (same FOV).')
+    parser.add_argument('--fold', type=int, choices=[0,1,2,3,4,5],
+                        help='CV fold to hold out as test (rotates val/test/train).')
+
     return parser.parse_args()
 
 
@@ -72,6 +119,28 @@ def update_params_from_args(params, args):
     if args.backbone_type:
         params['model_params']['backbone_type'] = args.backbone_type
         print('Changed backbone_type to: \033[1m{}\033[0m'.format(args.backbone_type))
+
+    if args.model:
+        backbone, mname = MODEL_MAP[args.model]
+        params['model_params']['backbone_type'] = backbone
+        if not args.model_name:
+            params['training_params']['model_name'] = mname
+        print('Selected model "\033[1m{}\033[0m" -> backbone_type={}, model_name={}'.format(
+              args.model, backbone, params['training_params']['model_name']))
+
+    if args.res:
+        _apply_resolution(params, args.res)
+        print('Set resolution to \033[1m{}\033[0m (transforms updated)'.format(args.res))
+
+    if args.fold is not None:
+        splits = _fold_splits(args.fold)
+        params['dataset_params']['data_split_numbers'] = splits
+        base_mn = params['training_params']['model_name']
+        if not base_mn.endswith('_fold{}'.format(args.fold)):
+            params['training_params']['model_name'] = '{}_fold{}'.format(base_mn, args.fold)
+        print('Set CV fold \033[1m{}\033[0m -> splits={}, model_name={}'.format(
+              args.fold, splits, params['training_params']['model_name']))
+
 
     if args.batch_size:
         for loader in ['trainloader', 'valloader', 'testloader']:
