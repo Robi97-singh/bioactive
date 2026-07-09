@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from scipy import ndimage
@@ -111,7 +112,11 @@ class MultiLabelMaskClassificationMetrics:
 
         print(roc_auc, roc_auc_array)
 
-        labs_combined.to_csv("/mnt/ssd8/bioactive/src/data/test_labels.csv"); preds_combined.to_csv("/mnt/ssd8/bioactive/src/data/test_preds.csv"); print("SAVED test_labels.csv and test_preds.csv")
+        _outdir = os.environ.get("BIOACT_RESULTS_DIR", "/mnt/ssd8/bioactive/src/data")
+        os.makedirs(_outdir, exist_ok=True)
+        labs_combined.to_csv(os.path.join(_outdir, "test_labels.csv"))
+        preds_combined.to_csv(os.path.join(_outdir, "test_preds.csv"))
+        print("SAVED test_labels.csv and test_preds.csv ->", _outdir)
         return roc_auc, roc_auc_array, labs_combined, preds_combined
 
     # Calculate and report metrics

@@ -161,6 +161,10 @@ class Trainer(BaseTrainer):
             self.scaler.step(self.optimizer)
             self.scaler.update()   
         
+        if not hasattr(self, "_epoch_train_losses"):
+            self._epoch_train_losses = []
+        self._epoch_train_losses.append(float(loss.item()))
+
         metric.add_preds(outputs, labels) # distributed gather inside
         self.scheduler.step(self.val_target, self.val_loss)
 
@@ -304,6 +308,7 @@ class Trainer(BaseTrainer):
 
         
         results_dir = os.path.join(self.save_dir, 'results', self.model_name)
+        os.environ["BIOACT_RESULTS_DIR"] = results_dir
         check_dir(results_dir)   
         
         feature_bank = []
@@ -437,12 +442,15 @@ class Trainer(BaseTrainer):
             'val_roc_auc': round(self.val_target, 6),
             'best_roc_auc': round(self.best_val_target, 6),
             'val_loss': round(self.val_loss, 6),
+            'train_loss': (round(float(np.mean(self._epoch_train_losses)), 6)
+                           if getattr(self, "_epoch_train_losses", []) else None),
             'best_val_loss': round(self.best_val_loss, 6),
             'learning_rate': self.get_lr(),
             'iters': self.iters,
             'epochs_done': epochs_done,
             'epochs_left': self.epochs - epochs_done
         })
+        self._epoch_train_losses = []
         try:
             with open(metrics_path, 'w') as f:
                 json.dump(metrics, f, indent=2)
