@@ -56,6 +56,17 @@ widens as validation loss flattens — the onset of mild overfitting, consistent
 with the model reaching its best validation performance and the best checkpoint
 being retained.
 
+Across all six folds (mean, with ±1 std band showing fold-to-fold
+consistency; shaded region = generalisation gap):
+
+![Train vs val loss, 6-fold mean](cv/cv_loss_meanband.png)
+
+All six folds overlaid individually:
+
+![Train vs val loss, all folds](cv/cv_loss_overlay.png)
+
+For reference, the single-fold view (fold 0):
+
 ![Training vs validation loss (fold 0)](fold0/graph7_train_val_loss.png)
 
 ## Representative fold (fold 0) — full diagnostics
