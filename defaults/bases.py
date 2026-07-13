@@ -581,7 +581,7 @@ class BaseTrainer:
         self.get_saved_model_path(model_path=model_path)
         if os.path.isfile(self.model_path) and self.restore_session:        
             print("Loading model from {}".format(self.model_path))
-            checkpoint = torch.load(self.model_path)
+            checkpoint = torch.load(self.model_path, weights_only=False)
             if is_parallel(self.model):
                 self.model.module.load_state_dict(checkpoint['state_dict'])
             else:
