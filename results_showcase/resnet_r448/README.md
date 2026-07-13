@@ -93,9 +93,7 @@ The complete per-fold graph set, shown for fold 0 as a representative example.
 
 ![Score distributions](fold0/graph5_score_distributions.png)
 
-**Summary panel**:
 
-![Summary](fold0/graph6_summary.png)
 
 ## Statistical comparison (Wilcoxon) — pending
 
