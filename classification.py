@@ -25,6 +25,7 @@ MODEL_MAP = {
     "biomedclip": ("biomedclip",      "bioact_biomedclip"),
     "convnext":   ("convnext_base",   "bioact_convnext"),
     "vit":        ("vit_b_16",        "bioact_vit_b16"),
+    "celldino":   ("celldino",        "bioact_celldino"),
 }
 
 def _apply_resolution(params, res):

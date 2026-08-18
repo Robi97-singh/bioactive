@@ -304,7 +304,70 @@ class ConvNeXtClassifier(BaseModel):
         with autocast(self.use_mixed_precision):
             x_emb = self.backbone(x)
             x_out = self.fc(x_emb)
-            
+
+            if return_embedding:
+                return x_out, x_emb
+            return x_out
+
+
+class CellDINOClassifier(BaseModel):
+    """Cell-DINO (ViT-S/8, 5-channel, Cell-Painting-pretrained) as a frozen
+    feature extractor with a linear classification head."""
+
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+
+        os.environ["XFORMERS_DISABLED"] = "1"   # clean fallback attention on cu130
+
+        # overridable via model_params (e.g. cluster vs local paths differ)
+        REPO = getattr(self, "celldino_repo", "/mnt/ssd8/bioactive/dinov2_repo")
+        CKPT = getattr(self, "celldino_ckpt",
+                       "/mnt/ssd8/bioactive/celldino_weights/cell_dino_vits8_pretrain_cp.pth")
+
+        print(f"Loading Cell-DINO from {CKPT} ...")
+        self.backbone = torch.hub.load(
+            REPO, "cell_dino_cp_vits8",
+            source="local",
+            pretrained_path=CKPT,
+            in_channels=self.img_channels,     # 5
+        )
+
+        embed_dim = 384   # ViT-S
+        self.fc = nn.Linear(embed_dim, self.n_classes)
+
+        if self.freeze_backbone:
+            self.freeze_submodel(self.backbone)
+
+        # Cell-DINO ViT-S/8 CP was pretrained on 128px single-cell crops. Our
+        # crop/FOV/split protocol is fixed (must match the other backbones), so
+        # instead of feeding it native 224/448px crops (far denser than anything
+        # it was trained on), we resize down to its native input scale right
+        # before the backbone sees it. Overridable via model_params.
+        self.celldino_input_size = getattr(self, "celldino_input_size", 128)
+
+        print(f"  Cell-DINO ready | embed_dim={embed_dim} | "
+              f"frozen={self.freeze_backbone} | "
+              f"input_size={self.celldino_input_size} | "
+              f"params={sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            x_in = F.interpolate(
+                x, size=(self.celldino_input_size, self.celldino_input_size),
+                mode="bicubic", align_corners=False, antialias=True,
+            )
+            if self.freeze_backbone:
+                self.backbone.eval()
+                with torch.no_grad():
+                    feats = self.backbone.forward_features(x_in)
+                    x_emb = feats["x_norm_clstoken"]      # [B, 384]
+                x_emb = x_emb.detach()
+            else:
+                feats = self.backbone.forward_features(x_in)
+                x_emb = feats["x_norm_clstoken"]
+
+            x_out = self.fc(x_emb)
             if return_embedding:
                 return x_out, x_emb
             return x_out

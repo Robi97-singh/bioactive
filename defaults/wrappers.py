@@ -178,6 +178,9 @@ class DefaultWrapper:
         elif backbone in ("convnext_base", "convnext_large"):
             from defaults.models import ConvNeXtClassifier
             model = ConvNeXtClassifier(self.model_params)
+        elif backbone == "celldino":
+            from defaults.models import CellDINOClassifier
+            model = CellDINOClassifier(self.model_params)
         else:
             model = Classifier(self.model_params)
         if self.transfer_learning_params.use_pretrained:
