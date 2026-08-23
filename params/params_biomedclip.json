@@ -230,7 +230,7 @@
       "pretrained_type": "supervised"
     },
     "pretrained": true,
-    "freeze_backbone": false
+    "freeze_backbone": true
   },
   "optimization_params": {
     "default": {
