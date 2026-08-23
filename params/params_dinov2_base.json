@@ -1,8 +1,8 @@
 {
   "dataset_params": {
     "dataset": "BioAct",
-    "data_location": "/mnt/ssd8/bioactive/src/data/images",
-    "dataset_csv_path": "/mnt/ssd8/bioactive/src/data/training_paper.csv",
+    "data_location": "/shared/hdd/data/bioactive/images",
+    "dataset_csv_path": "/shared/hdd/data/bioactive/training_paper.csv",
     "assays": [
       "688128",
       "688238",
