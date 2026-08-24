@@ -286,7 +286,7 @@
     "log_every": 30,
     "save_best_model": true,
     "early_stopping": true,
-    "early_stopping_patience": 8,
+    "early_stopping_patience": 6,
     "log_embeddings": false,
     "knn_eval": false,
     "grad_clipping": 1.0,
