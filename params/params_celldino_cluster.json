@@ -226,6 +226,7 @@
   },
   "model_params": {
     "backbone_type": "celldino",
+    "pretrained": true,
     "freeze_backbone": true,
     "celldino_input_size": 128,
     "celldino_repo": "/shared/ssd/home/b-r-singh1/dinov2_repo",
@@ -294,7 +295,7 @@
     "restore_only_model": false,
     "use_tensorboard": false,
     "use_mixed_precision": true,
-    "save_dir": "/mnt/ssd8/bioactive/src/models/"
+    "save_dir": "/shared/ssd/logs/b-r-singh1/"
   },
   "system_params": {
     "use_all_GPUs": false,
