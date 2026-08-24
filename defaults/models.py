@@ -32,10 +32,18 @@ class Classifier(BaseModel):
             else:
                 weight_pretrained = None
             self.backbone = cnn_models.__dict__[self.backbone_type](weights=weight_pretrained, **incargs)
-            fc_in_channels = self.backbone.fc.in_features
+            if hasattr(self.backbone, 'fc'):
+                fc_in_channels = self.backbone.fc.in_features
+            elif hasattr(self.backbone, 'classifier'):
+                fc_in_channels = self.backbone.classifier[-1].in_features
+            else:
+                raise NotImplementedError(f"Can't find feature dim for {self.backbone_type}")
         else:
             raise NotImplementedError                
-        self.backbone.fc = Identity()  # removing the fc layer from the backbone (which is manually added below)
+        if hasattr(self.backbone, 'fc'):
+            self.backbone.fc = Identity()
+        else:
+            self.backbone.classifier = Identity()  # EfficientNet
 
         # modify stem and last layer
         self.fc = nn.Linear(fc_in_channels, self.n_classes)
@@ -105,6 +113,21 @@ class Classifier(BaseModel):
             if pretrained:
                 self.backbone.Conv2d_1a_3x3.conv.weight.data = pretrained_weight                 
                 
+        elif backbone_type == 'EfficientNet':
+            first_conv = self.backbone.features[0][0]
+            conv_attrs = ['out_channels', 'kernel_size', 'stride',
+                          'padding', 'dilation', 'groups', 'bias', 'padding_mode']
+            conv1_defs = {attr: getattr(first_conv, attr) for attr in conv_attrs}
+
+            pretrained_weight = first_conv.weight.data
+            pretrained_weight = pretrained_weight.repeat(1, 4, 1, 1)[:, :img_channels]
+
+            new_conv = nn.Conv2d(img_channels, **conv1_defs)
+            if pretrained:
+                new_conv.weight.data = pretrained_weight
+            self.backbone.features[0][0] = new_conv
+            print(f"Adapting first channel of EfficientNet to {img_channels} channels")
+
         else:
             raise NotImplementedError("channel modification is not implemented for {}".format(backbone_type))
 
