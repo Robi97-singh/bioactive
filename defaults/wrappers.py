@@ -181,6 +181,9 @@ class DefaultWrapper:
         elif backbone == "celldino":
             from defaults.models import CellDINOClassifier
             model = CellDINOClassifier(self.model_params)
+        elif backbone == "lora_vit_small":
+            from defaults.models import LoRAViTClassifier
+            model = LoRAViTClassifier(self.model_params)
         else:
             model = Classifier(self.model_params)
         if self.transfer_learning_params.use_pretrained:

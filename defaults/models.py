@@ -371,3 +371,87 @@ class CellDINOClassifier(BaseModel):
             if return_embedding:
                 return x_out, x_emb
             return x_out
+
+
+class LoRAViTClassifier(BaseModel):
+    """DINOv2 ViT-S/14 backbone with LoRA-adapted attention (query/value
+    projections) and a 5-channel patch embedding. Base weights are frozen;
+    only the LoRA adapters, the re-adapted patch embedding, and the linear
+    head are trainable."""
+
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+
+        from transformers import AutoModel
+        from peft import LoraConfig, inject_adapter_in_model
+
+        model_id = 'facebook/dinov2-small'
+        print(f"Loading {model_id}...")
+        self.backbone = AutoModel.from_pretrained(model_id)
+        hidden_size = self.backbone.config.hidden_size
+
+        self._adapt_patch_embedding()
+
+        # freeze everything, then inject LoRA (which sets requires_grad=True
+        # only on the adapter matrices it creates)
+        self.freeze_submodel(self.backbone)
+
+        lora_config = LoraConfig(
+            r=getattr(self, "lora_rank", 8),
+            lora_alpha=getattr(self, "lora_alpha", 16),
+            lora_dropout=getattr(self, "lora_dropout", 0.05),
+            target_modules=getattr(self, "lora_target_modules", ["query", "value"]),
+            bias="none",
+        )
+        self.backbone = inject_adapter_in_model(lora_config, self.backbone)
+
+        # the patch embedding was just re-initialized for 5 channels and
+        # never saw this input distribution during pretraining -> keep it
+        # trainable, unlike the rest of the frozen base backbone
+        patch_proj = self.backbone.embeddings.patch_embeddings.projection
+        for p in patch_proj.parameters():
+            p.requires_grad = True
+
+        self.fc = nn.Linear(hidden_size, self.n_classes)
+
+        n_total = sum(p.numel() for p in self.parameters())
+        n_train = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f"  LoRA ViT-S/14 ready | trainable={n_train/1e6:.2f}M / total={n_total/1e6:.1f}M")
+
+    def _adapt_patch_embedding(self):
+        """Adapt patch embedding from 3 to 5 channels using weight averaging."""
+        if self.img_channels == 3:
+            return
+
+        proj = self.backbone.embeddings.patch_embeddings.projection
+        old_weight = proj.weight.data  # [embed_dim, 3, patch_size, patch_size]
+
+        new_weight = old_weight.repeat(1, 2, 1, 1)[:, :self.img_channels, :, :]
+
+        new_proj = nn.Conv2d(
+            self.img_channels,
+            proj.out_channels,
+            kernel_size=proj.kernel_size,
+            stride=proj.stride,
+            padding=proj.padding,
+            bias=proj.bias is not None
+        )
+        new_proj.weight.data = new_weight
+        if proj.bias is not None:
+            new_proj.bias.data = proj.bias.data
+
+        self.backbone.embeddings.patch_embeddings.projection = new_proj
+        self.backbone.config.num_channels = self.img_channels
+        self.backbone.embeddings.patch_embeddings.num_channels = self.img_channels
+        print(f"  Adapted patch embedding to {self.img_channels} channels")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            outputs = self.backbone(x)
+            x_emb = outputs.last_hidden_state[:, 0, :]
+            x_out = self.fc(x_emb)
+
+            if return_embedding:
+                return x_out, x_emb
+            return x_out

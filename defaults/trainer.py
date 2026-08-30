@@ -375,7 +375,7 @@ class Trainer(BaseTrainer):
         log_print(sep)
         log_print(f"  MODEL")
         log_print(f"    Backbone        : {p.model_params['backbone_type']}")
-        log_print(f"    Pretrained      : {p.model_params['pretrained']}")
+        log_print(f"    Pretrained      : {p.model_params.get('pretrained', 'N/A')}")
         log_print(f"    Num targets     : {len(dp['assays'])}")
         log_print(sep)
         log_print(f"  TRAINING")

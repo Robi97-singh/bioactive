@@ -3,12 +3,16 @@
 
 Each job: train (auto-tests, since is_supervised) -> make_plots_v3.py
 
-Matrix:  224 -> resnet, dino, clip, biomedclip   (24 jobs)
-         448 -> resnet, dino                     (12 jobs)
+Matrix:  224 -> resnet, dino, clip, biomedclip, lora_vit_s   (30 jobs)
+         448 -> resnet, dino, lora_vit_s                     (18 jobs)
 CLIP/BiomedCLIP are locked to 224 by their pretrained positional embeddings.
 
+Models with extra model_params (LoRA rank/alpha/target-modules, Cell-DINO's
+checkpoint path, etc.) that the shared BASE file can't express via --model
+alone get their own dedicated base file in MODEL_BASE.
+
   python3 make_jobs.py --models resnet --res 448 --folds 0   # smoke test
-  python3 make_jobs.py                                       # all 36
+  python3 make_jobs.py                                       # all 48
 """
 import argparse, os
 
@@ -20,11 +24,13 @@ LOGS     = "/shared/ssd/logs/b-r-singh1"
 VENV     = "/shared/ssd/home/b-r-singh1/venv"
 IMAGE    = "abrainone/ai-linux:cu12.6.3-latest"
 BASE     = "params/params_cluster_base.json"
+MODEL_BASE = {"lora_vit_s": "params/params_lora_vit_small_cluster.json"}
 UID = GID = 1376
 
 # 4090s have 24GB; these came from a 16GB 4080, so they are conservative.
-BATCH = {"resnet": 64, "dino": 32, "clip": 16, "biomedclip": 16}
-MATRIX = {224: ["resnet", "dino", "clip", "biomedclip"], 448: ["resnet", "dino"]}
+BATCH = {"resnet": 64, "dino": 32, "clip": 16, "biomedclip": 16, "lora_vit_s": 32}
+MATRIX = {224: ["resnet", "dino", "clip", "biomedclip", "lora_vit_s"],
+          448: ["resnet", "dino", "lora_vit_s"]}
 FOLDS = [0, 1, 2, 3, 4, 5]
 
 TPL = """apiVersion: batch/v1
@@ -84,7 +90,7 @@ def jobname(m, r, f):
 def render(m, r, f):
     return TPL.format(name=jobname(m, r, f), ns=NS, uid=UID, gid=GID, image=IMAGE,
                       code=CODE, home=HOME, data=DATA, logs=LOGS, venv=VENV,
-                      base=BASE, model=m, res=r, fold=f,
+                      base=MODEL_BASE.get(m, BASE), model=m, res=r, fold=f,
                       batch=BATCH.get(m, 32), mname=f"bioact_{m}_r{r}")
 
 ap = argparse.ArgumentParser()
