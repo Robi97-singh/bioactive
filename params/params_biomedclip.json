@@ -1,8 +1,8 @@
 {
   "dataset_params": {
     "dataset": "BioAct",
-    "data_location": "/mnt/ssd8/bioactive/src/data/images",
-    "dataset_csv_path": "/mnt/ssd8/bioactive/src/data/training_paper.csv",
+    "data_location": "/shared/hdd/data/bioactive/images",
+    "dataset_csv_path": "/shared/hdd/data/bioactive/training_paper.csv",
     "assays": [
       "688128",
       "688238",
@@ -287,7 +287,7 @@
     "log_every": 30,
     "save_best_model": true,
     "early_stopping": true,
-    "early_stopping_patience": 8,
+    "early_stopping_patience": 6,
     "log_embeddings": false,
     "knn_eval": false,
     "grad_clipping": 1.0,

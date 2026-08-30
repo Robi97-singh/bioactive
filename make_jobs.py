@@ -67,7 +67,7 @@ spec:
         - {{ name: PYTHONUNBUFFERED, value: "1" }}
         resources:
           requests: {{ nvidia.com/gpu: 1, cpu: 8, memory: 32Gi }}
-          limits:   {{ nvidia.com/gpu: 1, cpu: 16, memory: 64Gi }}
+          limits:   {{ nvidia.com/gpu: 1, cpu: 16, memory: 40Gi }}
         volumeMounts:
         - {{ mountPath: {home}, name: home }}
         - {{ mountPath: {data}, name: data, readOnly: true }}

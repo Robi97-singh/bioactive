@@ -40,6 +40,8 @@ def _apply_resolution(params, res):
             t['Resize']['apply'] = True
             t['Resize']['height'] = 540
             t['Resize']['width']  = 540
+            print(f"  [_apply_resolution] res=224: Resize -> 540, crop -> 224, FOV = 224/540 = {224/540:.3f}")
+            print(f"  [_apply_resolution] res=224: Resize -> 540, crop -> 224, FOV = 224/540 = {224/540:.3f}")
             for crop in ('CenterCrop', 'RandomCrop'):
                 if crop in t and t[crop].get('apply'):
                     t[crop]['height'] = 224
@@ -92,7 +94,7 @@ def parse_arguments():
     parser.add_argument('--model', type=str, choices=list(MODEL_MAP.keys()),
                         help='Select model by friendly name (sets backbone_type + model_name)')
     parser.add_argument('--res', type=int, choices=[224, 448],
-                        help='Input resolution. 448=crop448 (paper). 224=resize540+crop224 (same FOV).')
+                        help='Input resolution. 448=crop448 (paper). 224=resize540+crop224 (FOV 0.415, matched to 448 and paper).')
     parser.add_argument('--fold', type=int, choices=[0,1,2,3,4,5],
                         help='CV fold to hold out as test (rotates val/test/train).')
 
