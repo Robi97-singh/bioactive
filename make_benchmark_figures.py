@@ -168,6 +168,29 @@ if nemenyi is not None:
     print("\nNemenyi pairwise p-values:")
     print(nemenyi.round(4).to_string())
 
+    nem_ord = nemenyi.loc[order, order]
+    fig, ax = plt.subplots(figsize=(7, 6))
+    im = ax.imshow(nem_ord.values, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
+    ax.set_xticks(range(len(order))); ax.set_xticklabels(order, rotation=45, ha="right", fontsize=9)
+    ax.set_yticks(range(len(order))); ax.set_yticklabels(order, fontsize=9)
+    for i in range(len(order)):
+        for j in range(len(order)):
+            p = nem_ord.values[i, j]
+            if i == j:
+                txt = "-"
+            else:
+                star = "*" if p < 0.05 else ""
+                txt = f"{p:.3f}{star}"
+            color = "white" if (p < 0.3 or p > 0.8) else "black"
+            ax.text(j, i, txt, ha="center", va="center", fontsize=8, color=color)
+    cbar = fig.colorbar(im, ax=ax, shrink=0.85)
+    cbar.set_label("Nemenyi p-value", fontsize=9)
+    ax.set_title("Nemenyi pairwise significance\n(* = significant at p<0.05)", fontsize=12)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTDIR, "fig_E_nemenyi_heatmap.png"), dpi=150)
+    plt.close()
+    print("wrote fig_E_nemenyi_heatmap.png")
+
 # =====================================================================
 # FIGURE C : resolution comparison (224 vs 448) for DINO-family + ResNet
 # =====================================================================
