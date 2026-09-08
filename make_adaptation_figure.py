@@ -3,18 +3,23 @@
 make_adaptation_figure.py
 
 Figure D — the adaptation spectrum: frozen linear probe -> LoRA -> full fine-tuning.
-Places the LoRA-adapted DINOv2 (single fold) between the frozen backbones (6-fold CV)
+Places the LoRA-adapted DINOv2 (partial CV, folds as available) between the frozen backbones (6-fold CV)
 and the fine-tuned ResNet (6-fold CV), showing how much of the frozen->fine-tuned gap
 cheap adaptation (2.4% of parameters) recovers.
 
 Also writes the LoRA per-assay AUCs to results/cv/lora_vit_s_r224/cv_per_assay.csv in the
 standard format (for reference / optional inclusion elsewhere).
 
-LoRA per-assay AUCs are hard-coded from the fold-0 test evaluation (single fold; the other
-arms are 6-fold means, so LoRA is shown as a distinct regime point, not mixed into the
-6-fold statistical comparison in Figure B).
+LoRA per-assay AUCs are auto-discovered from whatever bioact_lora_vit_s_r224_fold*
+test evaluations exist on disk (results/bioact_lora_vit_s_r224_fold*/plots/per_assay_auc.csv),
+averaged per assay, and written to results/cv/lora_vit_s_r224/cv_per_assay.csv in the
+standard format. LoRA is shown as a distinct regime point (frozen probe -> LoRA -> full
+fine-tuning), not mixed into the 6-fold statistical comparison in Figure B. As more LoRA
+folds complete, re-running this script picks them up automatically -- no manual edits needed.
 """
 import os
+import glob
+import re
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -26,29 +31,36 @@ OUTDIR = os.environ.get("BIOACT_FIGDIR", os.path.join(RESULTS, "figures"))
 os.makedirs(OUTDIR, exist_ok=True)
 FOLD_COLS = ["fold0", "fold1", "fold2", "fold3", "fold4", "fold5"]
 
-# --- LoRA fold-0 per-assay AUCs (from test evaluation) ---
-LORA_ASSAYS = {
-    '688128': 0.5881481481481482, '688238': 0.5557894736842105, '688360': 0.7482517482517483,
-    '688546': 0.33777777777777773, '688549': 0.6307692307692309, '688612': 0.5879699248120301,
-    '688687': 0.5666666666666667, '688812': 0.5527426160337553, '688816': 0.6478899952584163,
-    '736947': 0.5620253164556962, '737187': 0.5719298245614036, '737287': 0.6006944444444444,
-    '737344': 0.5457128099173554, '752347': 0.4876543209876543, '752407': 0.5866012440598076,
-    '752434': 0.79375, '752493': 0.5442424242424242, '752563': 0.5398166023166022,
-    '752590': 0.6918441558441559, '752594': 0.7204116638078902, '845045': 0.6793032786885245,
-    '845102': 0.5958333333333333, '845164': 0.6725352112676056, '845169': 0.7705882352941177,
-    '845173': 0.43103448275862066, '845177': 0.7632432432432433, '845196': 0.6958333333333333,
-    '954338': 0.5108225108225108, '1495346': 0.658102766798419,
-}
-lora_vals = np.array(list(LORA_ASSAYS.values()))
+# --- auto-discover LoRA fold per-assay AUCs from whatever folds exist ---
+lora_fold_dfs = {}
+for path in sorted(glob.glob(os.path.join(RESULTS, "bioact_lora_vit_s_r224_fold*", "plots", "per_assay_auc.csv"))):
+    m = re.search(r"fold(\d+)", path)
+    if not m:
+        continue
+    fold_n = int(m.group(1))
+    df = pd.read_csv(path, index_col=0)
+    lora_fold_dfs[fold_n] = df["test_roc_auc"]
 
-# write LoRA per-assay CSV (single fold -> one column + mean)
+if not lora_fold_dfs:
+    raise SystemExit("No LoRA fold per_assay_auc.csv files found -- run make_plots_v3.py on at least one fold first.")
+
+lora_wide = pd.DataFrame(lora_fold_dfs).sort_index(axis=1)
+lora_wide.columns = [f"fold{c}" for c in lora_wide.columns]
+lora_wide = lora_wide.sort_index()  # sort by assay label for a stable, readable CSV
+lora_wide["mean"] = lora_wide.mean(axis=1)
+lora_wide["std"] = lora_wide[[c for c in lora_wide.columns if c.startswith("fold")]].std(axis=1)
+
+n_lora_folds = len([c for c in lora_wide.columns if c.startswith("fold")])
+lora_vals = lora_wide["mean"].values
+
 lora_dir = os.path.join(RESULTS, "cv", "lora_vit_s_r224")
 os.makedirs(lora_dir, exist_ok=True)
-lora_df = pd.DataFrame({"assay": [f"assay_{i}" for i in range(len(lora_vals))],
-                        "fold0": lora_vals, "mean": lora_vals,
-                        "std": np.zeros_like(lora_vals)}).set_index("assay")
-lora_df.to_csv(os.path.join(lora_dir, "cv_per_assay.csv"))
-print(f"wrote {lora_dir}/cv_per_assay.csv  (mean {lora_vals.mean():.4f})")
+lora_wide.to_csv(os.path.join(lora_dir, "cv_per_assay.csv"))
+fold_level_means = [lora_wide[c].mean() for c in lora_wide.columns if c.startswith("fold")]
+fold_level_std = np.std(fold_level_means)
+print(f"wrote {lora_dir}/cv_per_assay.csv  "
+      f"(n_folds={n_lora_folds}, mean {lora_vals.mean():.4f}, "
+      f"fold-level std {fold_level_std:.4f})")
 
 
 def per_assay_means(arm_key):
@@ -105,7 +117,7 @@ ft = per_assay_means("resnet_r224").mean()
 recovered = 100 * (lora_m - frozen_dino) / (ft - frozen_dino)
 ax.text(0.5, 0.02,
         f"LoRA recovers ~{recovered:.0f}% of the frozen->fine-tuned gap "
-        f"with 2.4% of parameters trainable\n(LoRA is single-fold; frozen/fine-tuned are 6-fold CV)",
+        f"with 2.4% of parameters trainable\n(LoRA: {n_lora_folds}-fold CV; frozen/fine-tuned: 6-fold CV)",
         transform=ax.transAxes, ha="center", fontsize=8.5, style="italic",
         bbox=dict(boxstyle="round", fc="#F2F5FA", ec="grey", alpha=0.8))
 
