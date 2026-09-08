@@ -36,6 +36,7 @@ FOLD_COLS = ["fold0", "fold1", "fold2", "fold3", "fold4", "fold5"]
 ARMS = [
     ("celldino_r224",   "Cell-DINO",   "frozen"),
     ("dino_r224",       "DINOv2",      "frozen"),
+    ("dino_large_r224", "DINOv2-Large","frozen"),
     ("biomedclip_r224", "BiomedCLIP",  "frozen"),
     ("resnet_r224",     "ResNet50\n(fine-tuned)", "finetuned"),
 ]
@@ -48,7 +49,7 @@ RES_ARMS = [
 
 # colors: frozen = blue shades, fine-tuned = warm
 COLORS = {
-    "Cell-DINO": "#2E6FB0", "DINOv2": "#5BA3D0", "BiomedCLIP": "#8FC3E0",
+    "Cell-DINO": "#2E6FB0", "DINOv2": "#5BA3D0", "DINOv2-Large": "#1A4A7A", "BiomedCLIP": "#8FC3E0",
     "ResNet50\n(fine-tuned)": "#C0603A",
 }
 PUBLIC_REF = 0.660  # Haslum public JUMP-CP benchmark
