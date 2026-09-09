@@ -44,6 +44,7 @@ ARMS = [
 RES_ARMS = [
     ("celldino_r224", "Cell-DINO 224"), ("celldino_r448", "Cell-DINO 448"),
     ("dino_r224", "DINOv2 224"), ("dino_r448", "DINOv2 448"),
+    ("dino_large_r224", "DINOv2-Large 224"), ("dino_large_r448", "DINOv2-Large 448"),
     ("resnet_r224", "ResNet 224"), ("resnet_r448", "ResNet 448"),
 ]
 
