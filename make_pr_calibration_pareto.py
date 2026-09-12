@@ -143,7 +143,7 @@ def head_params(dim, n_classes=29):
 PARETO = [
     ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 4)),
     ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen",    (-15, 12)),
-    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (-90, -4)),
+    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (12, -18)),
     ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (10, -14)),  # ViT-B/16 vision tower, ~86M
     ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora",                          (10, 4)),
     ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned",                                 (-155, 4)),
@@ -157,6 +157,7 @@ for label, auc, pct, grp, (dx, dy) in PARETO:
                 fontsize=9, arrowprops=dict(arrowstyle="-", color="grey", lw=0.6,
                 shrinkA=0, shrinkB=6))
 ax.set_xscale("log")
+ax.set_xlim(0.006, 200)
 ax.set_xlabel("Trainable parameters (%, log scale)", fontsize=11)
 ax.set_ylabel("Test ROC-AUC (6-fold mean)", fontsize=11)
 ax.set_title("Parameter efficiency: performance vs. training cost\n(JUMP-CP source_11, 224 resolution)", fontsize=12)
