@@ -136,20 +136,26 @@ print("wrote fig_G_calibration.png")
 def head_params(dim, n_classes=29):
     return dim * n_classes + n_classes
 
+# (label, auc, pct_trainable, group, label_offset_xy)
+# Offsets are hand-tuned so the three closely-clustered frozen-probe points
+# (DINOv2-Base, DINOv2-Large, BiomedCLIP -- all near 0.01-0.03% trainable)
+# don't overlap each other or their own markers.
 PARETO = [
-    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen"),
-    ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen"),
-    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen"),
-    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen"),  # ViT-B/16 vision tower, ~86M
-    ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora"),
-    ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned"),
+    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 4)),
+    ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen",    (-15, 12)),
+    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (-90, -4)),
+    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (10, -14)),  # ViT-B/16 vision tower, ~86M
+    ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora",                          (10, 4)),
+    ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned",                                 (-155, 4)),
 ]
 GROUP_COLOR = {"frozen": "#5BA3D0", "lora": "#7B5EA7", "finetuned": "#C0603A"}
 
-fig, ax = plt.subplots(figsize=(8, 6))
-for label, auc, pct, grp in PARETO:
+fig, ax = plt.subplots(figsize=(9, 6.5))
+for label, auc, pct, grp, (dx, dy) in PARETO:
     ax.scatter(pct, auc, s=140, color=GROUP_COLOR[grp], edgecolor="black", zorder=3)
-    ax.annotate(label, (pct, auc), textcoords="offset points", xytext=(8, 4), fontsize=9)
+    ax.annotate(label, (pct, auc), textcoords="offset points", xytext=(dx, dy),
+                fontsize=9, arrowprops=dict(arrowstyle="-", color="grey", lw=0.6,
+                shrinkA=0, shrinkB=6))
 ax.set_xscale("log")
 ax.set_xlabel("Trainable parameters (%, log scale)", fontsize=11)
 ax.set_ylabel("Test ROC-AUC (6-fold mean)", fontsize=11)
