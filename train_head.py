@@ -234,6 +234,18 @@ def main():
     print(f"  wrote {os.path.join(out_plots, 'per_assay_auc.csv')} "
           f"({len(ser)} assays)", flush=True)
 
+    # Also save raw per-sample sigmoid probabilities + true labels, for
+    # per-assay ROC curves later (no re-inference or retraining needed --
+    # this is the exact test_logits already computed above, just persisted).
+    test_probs = 1.0 / (1.0 + np.exp(-test_logits))
+    pd.DataFrame(test_probs, columns=names).to_csv(
+        os.path.join(out_plots, "test_preds.csv"), index=False)
+    pd.DataFrame(Yte.numpy(), columns=names).to_csv(
+        os.path.join(out_plots, "test_labels.csv"), index=False)
+    print(f"  wrote test_preds.csv / test_labels.csv "
+          f"({test_probs.shape[0]} samples, {test_probs.shape[1]} assays)",
+          flush=True)
+
     # Also drop a small metrics json next to the checkpoints for convenience.
     ckpt_dir = os.path.join(a.save_dir, "checkpoints")
     os.makedirs(ckpt_dir, exist_ok=True)
