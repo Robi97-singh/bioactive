@@ -5,7 +5,7 @@ on the public JUMP-CP Cell Painting bioactivity benchmark (source_11, 29 assays,
 
 **This is not a peer entry in the frozen-backbone benchmark.** It is the same CLIP ViT-L/14
 backbone (OpenAI weights, 304M params, 768-dim) as the [locked-recipe frozen arm](../clip_frozen_224/),
-evaluated with a **different training procedure**: full image-based training with AdamW
+evaluated with a **different training procedure**: full image-based training(The phrase "full image-based training" in your text means the data path — images are loaded, augmented and pushed through the frozen backbone every epoch — as opposed to the precompute path, where embeddings are extracted once and cached. Both arms are frozen linear probes.) with AdamW
 (lr = 1e-4) rather than the precompute-then-probe pipeline with SGD/cosine/lr=0.02 used for
 every arm in the main frozen-backbone comparison. It exists specifically to demonstrate the
 project's recipe-sensitivity finding with real, traceable data, rather than as a number stated
