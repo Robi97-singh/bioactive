@@ -37,7 +37,9 @@ ARMS = [
     ("celldino_r224",   "Cell-DINO",   "frozen"),
     ("dino_r224",       "DINOv2",      "frozen"),
     ("dino_large_r224", "DINOv2-Large","frozen"),
+    ("dinov3_r224",     "DINOv3-Base", "frozen"),
     ("biomedclip_r224", "BiomedCLIP",  "frozen"),
+    ("clip_r224",       "CLIP-L\n(locked recipe)", "frozen"),
     ("resnet_r224",     "ResNet50\n(fine-tuned)", "finetuned"),
 ]
 # resolution comparison arms
@@ -45,12 +47,14 @@ RES_ARMS = [
     ("celldino_r224", "Cell-DINO 224"), ("celldino_r448", "Cell-DINO 448"),
     ("dino_r224", "DINOv2 224"), ("dino_r448", "DINOv2 448"),
     ("dino_large_r224", "DINOv2-Large 224"), ("dino_large_r448", "DINOv2-Large 448"),
+    ("dinov3_r224", "DINOv3-Base 224"), ("dinov3_r448", "DINOv3-Base 448"),
     ("resnet_r224", "ResNet 224"), ("resnet_r448", "ResNet 448"),
 ]
 
 # colors: frozen = blue shades, fine-tuned = warm
 COLORS = {
-    "Cell-DINO": "#2E6FB0", "DINOv2": "#5BA3D0", "DINOv2-Large": "#1A4A7A", "BiomedCLIP": "#8FC3E0",
+    "Cell-DINO": "#2E6FB0", "DINOv2": "#5BA3D0", "DINOv2-Large": "#1A4A7A",
+    "DINOv3-Base": "#0F3A5C", "BiomedCLIP": "#8FC3E0", "CLIP-L\n(locked recipe)": "#4A90C2",
     "ResNet50\n(fine-tuned)": "#C0603A",
 }
 PUBLIC_REF = 0.660  # Haslum public JUMP-CP benchmark
