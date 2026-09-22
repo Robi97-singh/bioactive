@@ -37,14 +37,15 @@ FOLDS = [0, 1, 2, 3, 4, 5]
 # path_style: "plots" -> {stem}_fold{F}/plots/test_preds.csv  (train_head.py arms)
 #             "direct" -> {stem}_fold{F}/test_preds.csv        (classification.py arms)
 ARMS = [
-    ("bioact_celldino_r224",   "Cell-DINO",             "#2E6FB0", "plots"),
-    ("bioact_dino_r224",       "DINOv2-Base",           "#5BA3D0", "plots"),
-    ("bioact_dino_large_r224", "DINOv2-Large",          "#1A4A7A", "plots"),
-    ("bioact_dinov3_r224",     "DINOv3-Base",           "#0F3A5C", "plots"),
-    ("bioact_biomedclip_r224", "BiomedCLIP",            "#8FC3E0", "plots"),
-    ("bioact_clip_r224",       "CLIP-L (locked)",       "#4A90C2", "plots"),
-    ("bioact_lora_vit_s_r224", "DINOv2+LoRA",           "#7B5EA7", "direct"),
-    ("bioact_resnet_r224",     "ResNet50 (fine-tuned)", "#C0603A", "direct"),
+    ("bioact_celldino_r224",    "Cell-DINO",             "#2E6FB0", "plots"),
+    ("bioact_dino_r224",        "DINOv2-Base",           "#5BA3D0", "plots"),
+    ("bioact_dino_small_r224",  "DINOv2-Small",          "#9CCDE8", "plots"),
+    ("bioact_dino_large_r224",  "DINOv2-Large",          "#1A4A7A", "plots"),
+    ("bioact_dinov3_r224",      "DINOv3-Base",           "#0F3A5C", "plots"),
+    ("bioact_biomedclip_r224",  "BiomedCLIP",            "#8FC3E0", "plots"),
+    ("bioact_clip_r224",        "CLIP-L (locked)",       "#4A90C2", "plots"),
+    ("bioact_lora_vit_s_r224",  "DINOv2+LoRA",           "#7B5EA7", "direct"),
+    ("bioact_resnet_r224",      "ResNet50 (fine-tuned)", "#C0603A", "direct"),
 ]
 
 
@@ -143,11 +144,12 @@ def head_params(dim, n_classes=29):
 # (DINOv2-Base, DINOv2-Large, BiomedCLIP -- all near 0.01-0.03% trainable)
 # don't overlap each other or their own markers.
 PARETO = [
-    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 4)),
+    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 14)),
     ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen",    (-15, 20)),
+    ("DINOv2-Small",          0.5786, 100 * head_params(384)  / 22_100_000, "frozen",    (10, -22)),
     ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (12, -18)),
     ("DINOv3-Base",           0.5804, 100 * head_params(768)  / 86_000_000, "frozen",    (-90, 16)),  # ViT-B, ~86M assumed (768-dim matches DINOv2-Base scale; not wired into this repo's models.py)
-    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (10, -28)),  # ViT-B/16 vision tower, ~86M
+    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (10, -38)),  # ViT-B/16 vision tower, ~86M
     ("CLIP-L (locked)",       0.5798, 100 * head_params(768)  / 304_000_000, "frozen",   (10, -8)),
     ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora",                          (10, 4)),
     ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned",                                 (-155, 4)),

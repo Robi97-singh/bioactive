@@ -73,11 +73,12 @@ def per_assay_means(arm_key):
 
 # ---- the spectrum: ordered by degree of adaptation ----
 SPECTRUM = [
-    ("biomedclip_r224", "BiomedCLIP\n(frozen)",  "frozen"),
-    ("dino_r224",       "DINOv2\n(frozen)",      "frozen"),
-    ("celldino_r224",   "Cell-DINO\n(frozen)",   "frozen"),
-    ("lora_vit_s_r224", "DINOv2+LoRA\n(2.4% params)", "lora"),
-    ("resnet_r224",     "ResNet50\n(fine-tuned)","finetuned"),
+    ("biomedclip_r224",  "BiomedCLIP\n(frozen)",             "frozen"),
+    ("dino_r224",        "DINOv2-Base\n(frozen)",            "frozen"),
+    ("celldino_r224",    "Cell-DINO\n(frozen)",              "frozen"),
+    ("dino_small_r224",  "DINOv2-Small\n(frozen, LoRA base)","frozen"),
+    ("lora_vit_s_r224",  "DINOv2+LoRA\n(2.4% params)",       "lora"),
+    ("resnet_r224",      "ResNet50\n(fine-tuned)",           "finetuned"),
 ]
 GROUP_COLOR = {"frozen": "#5BA3D0", "lora": "#7B5EA7", "finetuned": "#C0603A"}
 
@@ -110,14 +111,16 @@ ax.set_title("Adaptation spectrum: frozen probe -> LoRA -> full fine-tuning\n"
 ax.legend(fontsize=8, loc="upper left")
 ax.grid(axis="y", alpha=0.3)
 
-# annotate the gap LoRA recovers
-frozen_dino = per_assay_means("dino_r224").mean()
+# annotate the gap LoRA recovers -- baseline is DINOv2-Small (LoRA's own backbone,
+# frozen), NOT DINOv2-Base, so the percentage isolates adaptation method from backbone size
+frozen_small = per_assay_means("dino_small_r224").mean()
 lora_m = per_assay_means("lora_vit_s_r224").mean()
 ft = per_assay_means("resnet_r224").mean()
-recovered = 100 * (lora_m - frozen_dino) / (ft - frozen_dino)
+recovered = 100 * (lora_m - frozen_small) / (ft - frozen_small)
 ax.text(0.5, 0.02,
         f"LoRA recovers ~{recovered:.0f}% of the frozen->fine-tuned gap "
-        f"with 2.4% of parameters trainable\n(LoRA: {n_lora_folds}-fold CV; frozen/fine-tuned: 6-fold CV)",
+        f"with 2.4% of parameters trainable\n(baseline: frozen DINOv2-Small, same backbone as LoRA; "
+        f"LoRA: {n_lora_folds}-fold CV; frozen/fine-tuned: 6-fold CV)",
         transform=ax.transAxes, ha="center", fontsize=8.5, style="italic",
         bbox=dict(boxstyle="round", fc="#F2F5FA", ec="grey", alpha=0.8))
 
