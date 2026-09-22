@@ -169,7 +169,7 @@ class DefaultWrapper:
         start from different model parameter initial values.   
         """
         backbone = self.model_params.backbone_type
-        if backbone in ("dinov2_base", "dinov2_large", "dinov2_giant"):
+        if backbone in ("dinov2_small", "dinov2_base", "dinov2_large", "dinov2_giant"):
             from defaults.models import DINOv2Classifier
             model = DINOv2Classifier(self.model_params)
         elif backbone in ("clip_vitl14", "biomedclip"):

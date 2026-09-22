@@ -118,6 +118,7 @@ class DINOv2Classifier(BaseModel):
         
         from transformers import AutoModel
         model_id = {
+            'dinov2_small': 'facebook/dinov2-small',
             'dinov2_base':  'facebook/dinov2-base',
             'dinov2_large': 'facebook/dinov2-large',
             'dinov2_giant': 'facebook/dinov2-giant',

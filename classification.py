@@ -20,6 +20,7 @@ global debug
 MODEL_MAP = {
     "resnet":     ("resnet50",        "bioact_resnet50"),
     "dino":       ("dinov2_base",     "bioact_dinov2_base"),
+    "dino_small": ("dinov2_small",    "bioact_dinov2_small"),
     "dino_large": ("dinov2_large",    "bioact_dinov2_large"),
     "clip":       ("clip_vitl14",     "bioact_clip_vitl14"),
     "biomedclip": ("biomedclip",      "bioact_biomedclip"),
