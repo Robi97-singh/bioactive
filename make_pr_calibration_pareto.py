@@ -144,13 +144,13 @@ def head_params(dim, n_classes=29):
 # (DINOv2-Base, DINOv2-Large, BiomedCLIP -- all near 0.01-0.03% trainable)
 # don't overlap each other or their own markers.
 PARETO = [
-    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 14)),
-    ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen",    (-15, 20)),
-    ("DINOv2-Small",          0.5786, 100 * head_params(384)  / 22_100_000, "frozen",    (10, -22)),
-    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (12, -18)),
-    ("DINOv3-Base",           0.5804, 100 * head_params(768)  / 86_000_000, "frozen",    (-90, 16)),  # ViT-B, ~86M assumed (768-dim matches DINOv2-Base scale; not wired into this repo's models.py)
-    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (10, -38)),  # ViT-B/16 vision tower, ~86M
-    ("CLIP-L (locked)",       0.5798, 100 * head_params(768)  / 304_000_000, "frozen",   (10, -8)),
+    ("Cell-DINO",             0.5932, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 18)),
+    ("DINOv2-Small",          0.5786, 100 * head_params(384)  / 22_100_000, "frozen",    (10, -32)),
+    ("DINOv2-Base",           0.5796, 100 * head_params(768)  / 86_600_000, "frozen",    (18, 22)),
+    ("DINOv3-Base",           0.5804, 100 * head_params(768)  / 86_000_000, "frozen",    (-75, 32)),  # ViT-B, ~86M assumed (768-dim matches DINOv2-Base scale; not wired into this repo's models.py)
+    ("BiomedCLIP",            0.5774, 100 * head_params(768)  / 86_000_000, "frozen",    (5, -42)),  # ViT-B/16 vision tower, ~86M
+    ("DINOv2-Large",          0.5790, 100 * head_params(1024) / 304_800_000, "frozen",   (10, 30)),
+    ("CLIP-L (locked)",       0.5798, 100 * head_params(768)  / 304_000_000, "frozen",   (-15, -35)),
     ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora",                          (10, 4)),
     ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned",                                 (-155, 4)),
 ]
