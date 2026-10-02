@@ -72,3 +72,11 @@ ground-truth label, and selection reason annotated.
 - Target: single assay logit (class-discriminative, not class-agnostic)
 - Pseudo-RGB: channels 0/2/4 (Mito/RNA/DNA) mapped to R/G/B, per-channel min-max normalized
 - Script: run_gradcam_v2.py
+
+
+#### r448 — high-AUC assay (845164), false positive
+
+![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
+
+Compound **JCP2022_076632** — predicted active but ground-truth inactive.
+The heatmap highlights image regions the model relied on for its (incorrect) positive prediction, showing where the network was misled.
