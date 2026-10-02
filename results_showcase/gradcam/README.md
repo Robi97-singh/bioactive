@@ -71,12 +71,36 @@ Assay 845164 has high AUC (the model performs well on it), so the heatmap shows 
 Compound **JCP2022_042261** — predicted active and ground-truth active.
 Assay 688687 has low AUC (the model struggles on it), so even correct predictions may show diffuse or less specific attention.
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 43e27cb (Add r224 Grad-CAM heatmaps (16 PNGs) and r224 samples to README)
 #### r448 — high-AUC assay (845164), false positive
 
 ![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
 
 Compound **JCP2022_076632** — predicted active but ground-truth inactive.
+Despite this being a high-AUC assay where the model generally performs well, the heatmap shows the network latching onto morphological features that resemble true actives — a confident but wrong prediction.
+
+### r224 -- high-AUC assay (752594), true positive
+
+![752594 true positive](resnet50_r224/752594/JCP2022_108083_true_positive_overlay.png)
+
+Compound **JCP2022_108083** — predicted active and ground-truth active.
+Assay 752594 has high AUC (the model performs well on it), so the heatmap shows focused attention on relevant cellular structures.
+
+### r224 -- low-AUC assay (688687), true positive
+
+![688687 true positive](resnet50_r224/688687/JCP2022_042261_true_positive_overlay.png)
+
+Compound **JCP2022_042261** — predicted active and ground-truth active.
+Assay 688687 has low AUC (the model struggles on it), so even correct predictions may show diffuse or less specific attention.
+
+#### r224 — high-AUC assay (752594), false positive
+
+![752594 false positive](resnet50_r224/752594/JCP2022_062604_false_positive_overlay.png)
+
+Compound **JCP2022_062604** — predicted active but ground-truth inactive.
 Despite this being a high-AUC assay where the model generally performs well, the heatmap shows the network latching onto morphological features that resemble true actives — a confident but wrong prediction.
 
 ## Implementation
