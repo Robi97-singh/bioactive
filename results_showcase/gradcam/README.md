@@ -61,9 +61,15 @@ ground-truth label, and selection reason annotated.
 
 ![845164 true positive](resnet50_r448/845164/JCP2022_097273_true_positive_overlay.png)
 
+Compound **JCP2022_097273** — predicted active and ground-truth active.
+Assay 845164 has high AUC (the model performs well on it), so the heatmap shows focused attention on relevant cellular structures.
+
 ### r448 -- low-AUC assay (688687), true positive
 
 ![688687 true positive](resnet50_r448/688687/JCP2022_042261_true_positive_overlay.png)
+
+Compound **JCP2022_042261** — predicted active and ground-truth active.
+Assay 688687 has low AUC (the model struggles on it), so even correct predictions may show diffuse or less specific attention.
 
 Compound **JCP2022_042261** — predicted active and ground-truth active.
 The heatmap highlights image regions the model relied on for its correct positive prediction, on a lower-performing assay.
@@ -73,7 +79,7 @@ The heatmap highlights image regions the model relied on for its correct positiv
 ![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
 
 Compound **JCP2022_076632** — predicted active but ground-truth inactive.
-The heatmap highlights image regions the model relied on for its (incorrect) positive prediction, showing where the network was misled.
+Despite this being a high-AUC assay where the model generally performs well, the heatmap shows the network latching onto morphological features that resemble true actives — a confident but wrong prediction.
 
 ## Implementation
 
