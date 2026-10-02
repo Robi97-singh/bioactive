@@ -71,10 +71,6 @@ Assay 845164 has high AUC (the model performs well on it), so the heatmap shows 
 Compound **JCP2022_042261** — predicted active and ground-truth active.
 Assay 688687 has low AUC (the model struggles on it), so even correct predictions may show diffuse or less specific attention.
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 43e27cb (Add r224 Grad-CAM heatmaps (16 PNGs) and r224 samples to README)
 #### r448 — high-AUC assay (845164), false positive
 
 ![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
