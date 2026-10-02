@@ -65,6 +65,13 @@ ground-truth label, and selection reason annotated.
 
 ![688687 true positive](resnet50_r448/688687/JCP2022_042261_true_positive_overlay.png)
 
+#### r448 — high-AUC assay (845164), false positive
+
+![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
+
+Compound **JCP2022_076632** — predicted active but ground-truth inactive.
+The heatmap highlights image regions the model relied on for its (incorrect) positive prediction, showing where the network was misled.
+
 ## Implementation
 
 - Library: pytorch-grad-cam (https://github.com/jacobgil/pytorch-grad-cam)
@@ -74,9 +81,3 @@ ground-truth label, and selection reason annotated.
 - Script: run_gradcam_v2.py
 
 
-#### r448 — high-AUC assay (845164), false positive
-
-![845164 false positive](resnet50_r448/845164/JCP2022_076632_false_positive_overlay.png)
-
-Compound **JCP2022_076632** — predicted active but ground-truth inactive.
-The heatmap highlights image regions the model relied on for its (incorrect) positive prediction, showing where the network was misled.
