@@ -1,3 +1,5 @@
+> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
+
 DINOv2-Large — Frozen Linear-Probe Arm (Scale Ladder)
 Replication and extension of Fredin Haslum et al., Nature Communications 15:3470 (2024), on the public JUMP-CP Cell Painting bioactivity benchmark (source_11, 29 assays, 6-fold CV).
 
