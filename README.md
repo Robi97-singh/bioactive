@@ -68,7 +68,129 @@ Cell Painting five-channel fluorescence microscopy images to compound bioactivit
 - Checkpoints — trained model weights (1.4–4.8 GB each)
 - Pretrained weights — loaded from a local Hugging Face cache (server runs offline)
 
-## Reproducing a run
+## Pipeline overview & How to reproduce
+
+This section documents the actual end-to-end pipeline behind the Results
+table above: which files run in what order, for both training regimes, and
+how everything converges into the final figures. The "Reproducing a run"
+section further below describes an earlier, single-model CLI pattern and is
+kept only as a historical record — use this section instead.
+
+**Honesty note:** the step that builds the five-channel fluorescence
+training images (percentile-normalized PNGs from raw Cell Painting TIFFs)
+was a one-off process run early in the project and is *not* tracked as a
+script in this repo. If you are reproducing from scratch, you will need to
+rebuild an equivalent step yourself, or start from `data_paper.csv` /
+`split_data_paper.csv` plus already-built images. The newer brightfield
+extension (see below) *is* fully scripted end to end, under
+`scripts/brightfield/`, and can serve as a template for that image-building
+step.
+
+### Flow diagram
+
+```mermaid
+flowchart TD
+    subgraph DP["1. Data preparation (fluorescence)"]
+        A1["data_prep/prep_paper_faithful.py<br/>(joins JUMP metadata + ChEMBL)"] --> A2["data_prep/split_paper_faithful.py<br/>(Butina clustering -> 6-fold compound-level CV)"]
+        A2 --> A3["training_paper.csv<br/>(labels + split_number, 0-5)"]
+        A4["(untracked, one-off)<br/>raw TIFFs -> percentile-normalized PNGs"]
+    end
+
+    subgraph BF["1b. Data preparation (brightfield extension)"]
+        B1["scripts/brightfield/01_build_brightfield_manifest.py"] --> B2["scripts/brightfield/02_download_and_process_brightfield.py"]
+        B2 --> B3["brightfield_training_paper.csv<br/>(reuses same split_number)"]
+    end
+
+    A3 --> T1
+    A3 --> T2
+    B3 -.optional 1-channel arm.-> T1
+    B3 -.optional 1-channel arm.-> T2
+
+    subgraph REGIME_A["2a. Fine-tuned CNN (end-to-end)"]
+        T1["classification.py --model --res --fold<br/>(trains + checkpoints)"] --> T1T["classification.py ... --test<br/>(evaluates best checkpoint)"]
+    end
+
+    subgraph REGIME_B["2b. Frozen-backbone linear probe"]
+        T2["extract_embeddings.py --model --res --fold<br/>(one forward pass, caches embeddings to disk)"] --> T3["train_head.py --model --res --fold<br/>(trains linear head on cached embeddings)"]
+    end
+
+    T1T --> AGG["aggregate_cv.py <model> <res><br/>(6-fold mean +/- std per assay)"]
+    T3 --> AGG
+
+    AGG --> FIG1["make_benchmark_figures.py<br/>(cross-arm comparison, Friedman/Nemenyi)"]
+    AGG --> FIG2["make_plots_v3.py <model_name><br/>(per-run diagnostic plots)"]
+    T1T --> GRAD["run_gradcam_v2.py<br/>(Grad-CAM visualization, ResNet only)"]
+```
+
+### File-role manifest
+
+| File | Role | Regime |
+|---|---|---|
+| `data_prep/prep_paper_faithful.py` | Builds labeled compound dataset (JUMP metadata + ChEMBL join) | Fluorescence data prep |
+| `data_prep/split_paper_faithful.py` | Butina clustering → compound-level 6-fold `split_number` | Fluorescence data prep |
+| `scripts/brightfield/01_build_brightfield_manifest.py` | Joins `training_paper.csv` against per-plate S3 load-data files to locate brightfield TIFFs | Brightfield data prep |
+| `scripts/brightfield/02_download_and_process_brightfield.py` | Downloads TIFFs from the public JUMP-CP S3 bucket, percentile-normalizes, writes 1-channel PNGs | Brightfield data prep |
+| `scripts/brightfield/04_compute_brightfield_stats.py` | Computes real per-channel mean/std from downloaded images | Brightfield data prep |
+| `classification.py` | Main CLI: trains (or `--test` evaluates) one model/resolution/fold. Used directly for fine-tuned CNNs; its arg-parsing is reused by `extract_embeddings.py` | Both (entry point) |
+| `extract_embeddings.py` | Runs a frozen backbone once per CV split, caches `{embeddings, labels, uids}` to disk — mirrors `classification.py`'s CLI exactly | Frozen probe |
+| `train_head.py` | Trains a linear head on cached embeddings; evaluates on TEST split with compound-level aggregation, writes `per_assay_auc.csv` | Frozen probe |
+| `aggregate_cv.py` | Aggregates the 6 CV folds into mean ± std test ROC-AUC per model/resolution | Both (convergence point) |
+| `make_benchmark_figures.py` | Cross-arm publication figures + `benchmark_summary.csv` (model comparison, resolution effect, Friedman/Nemenyi) | Both (final viz) |
+| `make_plots_v3.py` | Per-run diagnostic plots for one `model_name` | Both (final viz) |
+| `run_gradcam_v2.py` | Grad-CAM visualization for a fine-tuned ResNet-50 | Fine-tuned CNN (inference/viz) |
+| `defaults/models.py` | Model definitions, including channel-adaptation logic for brightfield (1-channel) arms | Shared |
+| `defaults/datasets.py` | Dataset classes, including `BioActBrightfield` | Shared |
+
+### Exact commands
+
+**1. Data prep (fluorescence, run once):**
+```bash
+python3 data_prep/prep_paper_faithful.py
+python3 data_prep/split_paper_faithful.py
+```
+
+**1b. Data prep (brightfield extension, run once):**
+```bash
+python3 scripts/brightfield/01_build_brightfield_manifest.py
+python3 scripts/brightfield/02_download_and_process_brightfield.py --workers 16
+python3 scripts/brightfield/04_compute_brightfield_stats.py
+```
+
+**2a. Fine-tuned CNN — train, then test, for each fold:**
+```bash
+export WANDB_MODE=disabled HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+export HF_HOME=~/.cache/huggingface
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+for fold in 0 1 2 3 4 5; do
+  python3 classification.py --model resnet --res 448 --fold $fold
+  python3 classification.py --model resnet --res 448 --fold $fold --test
+done
+```
+
+**2b. Frozen-backbone linear probe — extract embeddings once, then train the head, for each fold:**
+```bash
+for fold in 0 1 2 3 4 5; do
+  python3 extract_embeddings.py --model dino --res 224 --fold $fold
+  python3 train_head.py --model dino --res 224 --fold $fold
+done
+```
+(`--model` accepts any `MODEL_MAP` key from `classification.py`, e.g. `dino`, `celldino`, `clip`, `biomedclip`; resolution is `224` or `448`.)
+
+**3. Aggregate the 6 folds into mean ± std:**
+```bash
+python3 aggregate_cv.py <model> <res>
+# e.g. python3 aggregate_cv.py resnet 448
+```
+
+**4. Generate figures / run inference-side visualization:**
+```bash
+python3 make_benchmark_figures.py          # cross-arm comparison figures + benchmark_summary.csv
+python3 make_plots_v3.py bioact_resnet_r448_fold0   # per-run diagnostic plots
+python3 run_gradcam_v2.py --targets <csv_of_targets> --out <output_dir> --model resnet --res 448
+```
+
+## Reproducing a run (legacy single-model CLI — superseded by the Pipeline overview above)
 
 Each model uses the same recipe; only the params file differs.
 
