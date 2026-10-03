@@ -202,7 +202,7 @@ def main():
     emb_dir = os.path.join(a.save_dir, "embeddings")
 
     Xtr, Ytr, _ = _load_split(emb_dir, stem, "train", a.feature)
-    Xva, Yva, _ = _load_split(emb_dir, stem, "val", a.feature)
+    Xva, Yva, Uva = _load_split(emb_dir, stem, "val", a.feature)
     Xte, Yte, Ute = _load_split(emb_dir, stem, "test", a.feature)
 
     # Standardize features: subtract TRAIN mean, divide by TRAIN std. Stats come
@@ -233,6 +233,20 @@ def main():
     Xtr_d, Ytr_d = Xtr.to(device), Ytr.to(device)
     Xva_d = Xva.to(device)
 
+    # --- Validation fix (2026-10-03): early stopping now scores validation at
+    # compound level, matching the test-time fix below, instead of the raw
+    # per-image signal used previously. Spot-checked on 2 models (dino_r224,
+    # celldino_r224, fold 0): the per-image and compound-level metrics agreed
+    # on epoch ordering 97-99% of the time and the "wrong" checkpoint the old
+    # code would have picked cost <0.0001 val ROC-AUC -- so this fix does not
+    # change any already-reported result, but is scored correctly from here on.
+    assay_name_map = _assay_names(n_classes, a.fold, a.save_dir, a.model, a.res)
+    pw_to_compound = _build_plate_well_to_compound(a.training_paper_csv)
+    if Uva is None:
+        print(f"[{stem}] WARNING: no 'uids' in cached val embeddings -- "
+              f"falling back to per-image validation AUC for early stopping.",
+              flush=True)
+
     best_val = -1.0
     best_state = None
     patience_ctr = 0
@@ -259,7 +273,16 @@ def main():
             head.eval()
             with torch.no_grad():
                 val_logits = head(Xva_d).cpu().numpy()
-            val_auc, _ = mean_roc_auc(Yva.numpy(), val_logits, do_sigmoid=True)
+            val_auc_per_image, _ = mean_roc_auc(Yva.numpy(), val_logits, do_sigmoid=True)
+            val_auc = val_auc_per_image
+            if Uva is not None:
+                val_probs = 1.0 / (1.0 + np.exp(-val_logits))
+                _, labels_vc, preds_vc, _ = _aggregate_by_compound(
+                    val_probs, Yva.numpy(), Uva, pw_to_compound)
+                _, vc_aucs = _per_assay_auc_from_arrays(
+                    labels_vc, preds_vc, n_classes, assay_name_map)
+                if vc_aucs:
+                    val_auc = float(np.mean(vc_aucs))
             improved = val_auc > best_val
             if improved:
                 best_val = val_auc
@@ -269,10 +292,13 @@ def main():
             else:
                 patience_ctr += 1
             print(f"  epoch {epoch:3d} | train_loss {train_loss:.4f} | "
-                  f"val_roc_auc {val_auc:.4f} | best {best_val:.4f} | "
+                  f"val_roc_auc {val_auc:.4f} (compound) | "
+                  f"val_roc_auc_per_image {val_auc_per_image:.4f} | "
+                  f"best {best_val:.4f} | "
                   f"patience {patience_ctr}/{a.patience}", flush=True)
             history.append({"epoch": epoch, "train_loss": float(train_loss),
-                            "val_roc_auc": float(val_auc)})
+                            "val_roc_auc": float(val_auc),
+                            "val_roc_auc_per_image": float(val_auc_per_image)})
             if patience_ctr >= a.patience:
                 print(f"  EARLY STOP at epoch {epoch} (best val {best_val:.4f})",
                       flush=True)
@@ -290,16 +316,15 @@ def main():
     # for audit-trail / comparison purposes -- NOT used as the reported metric.
     test_mean_per_image, _ = mean_roc_auc(Yte.numpy(), test_logits, do_sigmoid=True)
 
-    assay_name_map = _assay_names(n_classes, a.fold, a.save_dir, a.model, a.res)
-
     # --- Compound-level aggregation (the fix) ---------------------------------
+    # assay_name_map / pw_to_compound were already built before the training
+    # loop (used there for validation scoring too); reused here as-is.
     if Ute is None:
         raise RuntimeError(
             f"No 'uids' found in cached test embeddings for {stem}; cannot "
             f"aggregate to compound level. Re-run extract_embeddings.py with "
             f"a version that saves uids."
         )
-    pw_to_compound = _build_plate_well_to_compound(a.training_paper_csv)
     compound_ids, labels_c, preds_c, unmapped = _aggregate_by_compound(
         test_probs_per_image, Yte.numpy(), Ute, pw_to_compound)
     if unmapped:
