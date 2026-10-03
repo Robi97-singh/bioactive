@@ -10,28 +10,37 @@ trained; the rest of the backbone stays frozen. This is the middle point of the 
 spectrum: frozen probe -> LoRA -> full fine-tuning. Public benchmark reference:
 **0.660 +/- 0.094**.
 
-## Result -- cheap adaptation closes most of the frozen-to-fine-tuned gap
+## Result -- cheap adaptation recovers about a quarter of the gap, not two-thirds
 
 | Regime | Model | Trainable params | Test ROC-AUC (6-fold) |
 |--------|-------|-------------------|------------------------|
-| Frozen probe | DINOv2-Base | head only | 0.5796 +/- 0.0067 |
-| Frozen probe | Cell-DINO | head only | 0.5932 +/- 0.0065 |
-| **LoRA** | **DINOv2 + LoRA** | **0.54M (2.4%)** | **0.6373 +/- 0.0203** |
+| Frozen probe | **DINOv2-Small (same backbone as LoRA)** | head only | **0.6283 +/- 0.0144** |
+| Frozen probe | DINOv2-Base (reference, 4x larger backbone) | head only | 0.6345 +/- 0.0162 |
+| Frozen probe | Cell-DINO (reference) | head only | 0.6373 +/- 0.0119 |
+| **LoRA** | **DINOv2-Small + LoRA** | **0.54M (2.4%)** | **0.6373 +/- 0.0203** |
 | Fine-tuned | ResNet50 | all (25M) | 0.6638 +/- 0.0153 |
 
 LoRA per-fold test ROC-AUC: 0.6082, 0.6426, 0.6233, 0.6677, 0.6456, 0.6364.
 
-**LoRA recovers ~68.5% of the frozen (DINOv2-Base) -> fine-tuned (ResNet50) gap**, closing to
-within 0.0265 of full fine-tuning while training only 2.4% of parameters.
+**LoRA recovers ~25.4% of the frozen (same-backbone DINOv2-Small) -> fine-tuned (ResNet50) gap**,
+closing to within 0.0265 of full fine-tuning while training only 2.4% of parameters.
+
+> **Note (2026-10-03):** this table previously compared LoRA against the DINOv2-Base frozen
+> result (0.5796), which was wrong on two counts: that number predates the compound-level
+> aggregation fix, *and* DINOv2-Base is a 4x larger backbone than the DINOv2-Small that LoRA is
+> actually built on. Both issues are now fixed. DINOv2-Small is the correct same-backbone
+> baseline (0.6283 +/- 0.0144), and gap-recovery drops from the previously reported 68.5% to
+> 25.4%. LoRA's own number was unaffected by the aggregation bug -- it was already
+> compound-aggregated -- so this is entirely a baseline correction, not a change to LoRA's result.
 
 ## What this shows
 
-**1. Cheap adaptation gets most of the way to full fine-tuning.** Adapting just the
-query/value attention projections and the patch embedding -- 2.4% of the backbone's
-parameters -- recovers roughly two-thirds of the gap between a frozen DINOv2 probe and a
-fully fine-tuned ResNet50. This is a strong parameter-efficiency result: most of the
-performance benefit of full adaptation is available at a fraction of the training cost and
-memory footprint.
+**1. Cheap adaptation helps, but recovers a modest fraction of the gap to full fine-tuning,
+not most of it.** Adapting just the query/value attention projections and the patch embedding --
+2.4% of the backbone's parameters -- recovers about a quarter (25.4%) of the gap between a
+frozen, same-backbone DINOv2-Small probe and a fully fine-tuned ResNet50. This is a real but
+modest efficiency result: roughly three-quarters of the frozen-to-fine-tuned gap remains
+unclosed by this lightweight adaptation on this benchmark.
 
 **2. LoRA has meaningfully wider fold-to-fold variance than the frozen arms.** Std = 0.0203,
 roughly 3x wider than any frozen-probe arm (~0.006-0.007) and closer to (though still tighter
