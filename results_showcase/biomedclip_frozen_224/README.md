@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # BiomedCLIP — Frozen Linear-Probe Arm (biomedical image-text baseline)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -11,37 +9,43 @@ the **biomedical-domain, image-text** point in the comparison: pretrained on bio
 caption pairs (pathology, radiology, microscopy figures from PubMed), not on Cell Painting.
 Public benchmark reference: **0.660 ± 0.094**.
 
-## Result — biomedical-but-mismatched pretraining does not beat generic ImageNet
+## Result -- biomedical-but-mismatched pretraining still does not beat generic ImageNet, though margins are smaller and not significant
 
 | Frozen backbone @ 224 | Pretraining | Params | Test ROC-AUC (6-fold) |
 |-----|-------------|--------|-----------------------|
-| Cell-DINO | Cell Painting (5 studies) | 21.5M | 0.5932 +/- 0.0065 |
-| DINOv2-Base | ImageNet (generic) | 86M | 0.5796 +/- 0.0067 |
-| **BiomedCLIP** | Biomedical image-text (PMB) | 86M | **0.5774 +/- 0.0060** |
+| Cell-DINO | Cell Painting (5 studies) | 21.5M | 0.6373 +/- 0.0119 |
+| DINOv2-Base | ImageNet (generic) | 86M | 0.6345 +/- 0.0162 |
+| **BiomedCLIP** | Biomedical image-text (PMB) | 86M | **0.6245 +/- 0.0166** |
 | ResNet50 (fine-tuned, ref) | ImageNet | 25M | 0.6638 +/- 0.0153 |
 
-BiomedCLIP per-fold test ROC-AUC: 0.5749, 0.5776, 0.5743, 0.5877, 0.5797, 0.5701.
+BiomedCLIP per-fold test ROC-AUC: 0.6154, 0.6296, 0.6088, 0.6551, 0.6229, 0.6153.
+
+> **Note (2026-10-03):** numbers corrected for compound-level aggregation. The ordering
+> (Cell-DINO > DINOv2-Base > BiomedCLIP) is unchanged, but margins shrink and, per the
+> project-wide Nemenyi test, none of these pairwise differences are statistically
+> significant (BiomedCLIP vs DINOv2-Base p=0.91, vs Cell-DINO p=0.12).
 
 ## What this shows
 
-**1. "Biomedical" pretraining is not the same as domain-matched pretraining.**
-BiomedCLIP lands slightly below generic ImageNet DINOv2 (0.5774 vs 0.5796) and clearly below
-Cell-DINO (0.5932). Only the model actually pretrained on Cell Painting morphology (Cell-DINO)
-beats generic features. BiomedCLIP's "biomedical" data is largely pathology/radiology and figure
-panels from PubMed — visually far from 5-channel fluorescence Cell Painting — so the nominal
-domain label overstates the true domain match for this task.
+**1. "Biomedical" pretraining is still not the same as domain-matched pretraining, though the
+evidence for this is weaker than previously reported.**
+BiomedCLIP lands numerically below generic ImageNet DINOv2 (0.6245 vs 0.6345) and below
+Cell-DINO (0.6373), preserving the original ordering -- but none of these gaps are
+statistically significant under Nemenyi post-hoc testing. The direction is consistent with
+"biomedical figure/pathology pretraining is not domain-matched to Cell Painting," but this
+benchmark alone cannot establish it conclusively.
 
-**2. The image-text (CLIP) objective is a likely handicap.**
-BiomedCLIP's vision tower outputs a 512-dim embedding projected into a shared image-text space,
-optimized for matching captions rather than preserving fine morphological detail. That projection
-appears to discard exactly the subtle texture/intensity signal bioactivity prediction relies on.
-The two effects (domain mismatch + caption-aligned projection) are confounded here — both plausibly
-contribute, and neither can be isolated from an off-the-shelf backbone alone.
+**2. The image-text (CLIP) objective remains a plausible, unconfirmed handicap.**
+BiomedCLIP's 512-dim embedding, optimized for caption-matching rather than preserving fine
+morphological detail, is still a reasonable candidate explanation for its last-place finish
+among the three frozen backbones compared here -- domain mismatch and the caption-aligned
+projection remain confounded and neither can be isolated from an off-the-shelf backbone alone.
 
-**3. Domain-matched self-supervised pretraining remains the winner.**
-Across the three frozen backbones, the ordering is Cell-DINO > DINOv2 > BiomedCLIP. Pretraining on
-the actual assay modality (Cell-DINO) is the only thing that beats generic ImageNet; broad biomedical
-pretraining via an image-text objective does not.
+**3. Domain-matched self-supervised pretraining is still numerically ahead, but not proven
+best.** Across the three frozen backbones, the ordering Cell-DINO > DINOv2 > BiomedCLIP holds,
+but the project-wide Nemenyi results (see the root README and the DINOv3 README) show none of
+these differences reach significance -- treat the ordering as a numerical trend, not an
+established effect.
 
 ## Method
 

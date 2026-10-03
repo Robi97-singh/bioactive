@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv3-Base -- Frozen Linear-Probe Arm @ 448 (Resolution Axis)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -10,45 +8,49 @@ DINOv2-Base, DINOv2-Large, and Cell-DINO resolution arms, this checks whether th
 resolution benefit already established for the DINOv2 family also holds for DINOv3. Public
 benchmark reference: **0.660 +/- 0.094**.
 
-## Result -- resolution helps DINOv3-Base too, though less uniformly than DINOv2
+## Result -- DINOv3-Base is the only frozen backbone that benefits from 448
 
 | Backbone | Regime | 224 | 448 | resolution effect |
 |-----|--------|-----|-----|-------------------|
-| DINOv2-Base (frozen) | ImageNet | 0.5796 +/- 0.0067 | 0.5890 +/- 0.0046 | +0.94 pt |
-| DINOv2-Large (frozen) | ImageNet | 0.5790 +/- 0.0066 | 0.5888 +/- 0.0071 | +0.98 pt |
-| **DINOv3-Base** (frozen) | ImageNet | **0.5804 +/- 0.0060** | **0.5907 +/- 0.0093** | **+1.03 pt** |
-| Cell-DINO (frozen) | Cell Painting | 0.5932 +/- 0.0065 | 0.5928 +/- 0.0067 | ~0 |
-| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +1.5 pt |
+| DINOv2-Base (frozen) | ImageNet | 0.6345 +/- 0.0162 | 0.6211 +/- 0.0084 | -0.0134 |
+| DINOv2-Large (frozen) | ImageNet | 0.6313 +/- 0.0202 | 0.6216 +/- 0.0195 | -0.0097 |
+| **DINOv3-Base** (frozen) | ImageNet | **0.6332 +/- 0.0142** | **0.6448 +/- 0.0180** | **+0.0116** |
+| Cell-DINO (frozen) | Cell Painting | 0.6373 +/- 0.0119 | 0.6203 +/- 0.0115 | -0.0170 |
+| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +0.0154 |
 
-DINOv3-Base 448 per-fold test ROC-AUC: 0.5928, 0.5967, 0.5736, 0.5970, 0.5974, 0.5867.
+DINOv3-Base 448 per-fold test ROC-AUC: 0.6374, 0.6519, 0.6148, 0.6658, 0.6573, 0.6415.
 
-Paired 224 -> 448 change: +0.0126, +0.0130, +0.0000, +0.0158, +0.0079, +0.0127. DINOv3-Base
-improves in 5 of 6 folds, with one fold (fold 2) essentially unchanged (0.5736 at both
-resolutions, to 4 decimal places) rather than the clean 6-of-6 improvement seen for both DINOv2
-variants -- a genuine, minor departure worth noting rather than smoothing over.
+Paired 224 -> 448 change: +0.0214, +0.0172, -0.0034, +0.0215, +0.0052, +0.0076.
+**DINOv3-Base improves at 448 in 5 of 6 folds** (+0.0116 on average).
+
+> **Note (2026-10-03):** before the fix, this arm was reported as following the same modest
+> positive resolution trend as DINOv2-Base/Large (+1.03 pt, "replicates the DINOv2-family
+> effect"). Corrected, DINOv2-Base and DINOv2-Large both *reverse* to a resolution penalty
+> (see their own READMEs), while DINOv3-Base is the only frozen backbone in this comparison
+> whose 448 result still improves on its 224 result. The finding is now the opposite framing:
+> DINOv3-Base is the exception, not a third confirmation of a DINOv2-family pattern.
 
 ## What this shows
 
-**1. The DINOv2-family resolution effect replicates in DINOv3-Base, at a similar magnitude.**
-+1.03 points at 448, closely matching DINOv2-Base's +0.94 and DINOv2-Large's +0.98 -- three
-different model sizes/generations within the DINO self-supervised lineage all show essentially
-the same, modest resolution benefit, reinforcing the project's finding that this effect tracks
-architecture family and pretraining resolution proximity, not any single model's specific scale
-or generation.
+**1. DINOv3-Base is now the only frozen backbone (of four examined) that benefits from
+higher resolution.** DINOv2-Base, DINOv2-Large, and Cell-DINO all score lower at 448 than
+224 once compound-level aggregation is applied correctly; only DINOv3-Base, only fine-tuned
+ResNet improve. This is a materially different claim than "the DINOv2-family resolution
+effect replicates in DINOv3" -- there is no DINOv2-family resolution benefit left to
+replicate.
 
-**2. Unlike the two DINOv2 variants, the gain is not uniform across every fold.** Fold 2 shows
-no improvement at all (0.5736 -> 0.5736), while every other fold gains 0.8-1.6 points. This is
-the first resolution-arm result in this benchmark to show a genuine per-fold exception rather
-than a clean sweep, and is reported as such rather than folded into an overstated "consistent
-improvement" claim -- the aggregate effect is still real and positive, but slightly less uniform
-than DINOv2's.
+**2. Whatever distinguishes DINOv3-Base from DINOv2-Base/Large here is not explained by this
+benchmark's existing mechanistic story.** The architecture family (ViT), patch size, and
+ImageNet pretraining are all similar across DINOv2-Base/Large and DINOv3-Base, yet only
+DINOv3-Base shows a resolution benefit. Pinning down what DINOv3's training recipe or
+architecture changes actually did here would need investigation beyond this benchmark's
+scope (e.g. comparing position-embedding handling or training resolution curricula between
+DINOv2 and DINOv3 specifically) -- it is flagged as an open question, not answered here.
 
-**3. Domain-matched pretraining still resists the resolution effect entirely.** Cell-DINO
-remains flat at both resolutions regardless of which ImageNet-pretrained backbone it is compared
-against -- DINOv3-Base joining DINOv2-Base and DINOv2-Large as a third generically-pretrained
-backbone that *does* benefit from 448 further sharpens the contrast with Cell-DINO's
-pretraining-resolution-bound behavior (see the DINOv2 resolution showcase for the underlying
-mechanism).
+**3. Fine-tuning remains the more reliable resolution lever.**
+Only the fine-tuned ResNet shows a resolution benefit that holds regardless of backbone
+choice. For frozen features, resolution's effect is backbone-specific and, for 3 of the 4
+backbones examined, negative.
 
 ## Method
 

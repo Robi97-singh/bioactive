@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv3-Base -- Frozen Linear-Probe Arm @ 224
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -13,38 +11,50 @@ Training and extraction were run by Bhargav Parihar on his cluster account, usin
 shared `extract_embeddings.py` / `train_head.py` scripts and the same source_11 CSV (identical,
 fixed 6-fold splits). Public benchmark reference: **0.660 +/- 0.094**.
 
-## Result
+## Result -- a reordered cluster, with no pairwise Nemenyi significance from Cell-DINO
 
 | Frozen backbone @ 224 | Pretraining | Test ROC-AUC (6-fold) |
 |-----|-------------|------------------------|
-| Cell-DINO | Cell Painting | 0.5932 +/- 0.0065 |
-| CLIP ViT-L/14 (locked recipe) | Web image-text | 0.5798 +/- 0.0038 |
-| DINOv2-Base | ImageNet | 0.5796 +/- 0.0067 |
-| **DINOv3-Base** (this arm) | ImageNet | **0.5804 +/- 0.0060** |
-| DINOv2-Large | ImageNet | 0.5790 +/- 0.0066 |
-| BiomedCLIP | Biomedical image-text | 0.5774 +/- 0.0060 |
+| Cell-DINO | Cell Painting | 0.6373 +/- 0.0119 |
+| DINOv2-Base | ImageNet | 0.6345 +/- 0.0162 |
+| **DINOv3-Base** (this arm) | ImageNet | **0.6332 +/- 0.0142** |
+| DINOv2-Large | ImageNet | 0.6313 +/- 0.0202 |
+| CLIP ViT-L/14 (locked recipe) | Web image-text | 0.6267 +/- 0.0164 |
+| BiomedCLIP | Biomedical image-text | 0.6245 +/- 0.0166 |
 | ResNet50 (fine-tuned, ref) | ImageNet | 0.6638 +/- 0.0153 |
 
-DINOv3-Base per-fold test ROC-AUC: 0.5802, 0.5837, 0.5736, 0.5812, 0.5895, 0.5740.
+DINOv3-Base per-fold test ROC-AUC: 0.6160, 0.6347, 0.6182, 0.6443, 0.6521, 0.6339.
+
+Nemenyi post-hoc p-values vs Cell-DINO: DINOv2-Base 0.7693, DINOv2-Large 0.7693, DINOv3-Base
+0.3018, CLIP-L 0.1047, BiomedCLIP 0.1217 -- **none significant at p<0.05.**
+
+> **Note (2026-10-03):** before the fix, this README reported "five independent confirmations"
+> of Cell-DINO's advantage over every generically-pretrained backbone, each nominally
+> significant under the (buggy, per-image) Nemenyi test. Under correct compound-level
+> aggregation, Cell-DINO's mean is still numerically highest, but **no pairwise comparison
+> against any generically-pretrained backbone reaches significance.** The overall Friedman
+> test across all 7 arms is still significant (chi2=27.50, p=1.17e-4) -- some arms do differ
+> from each other (chiefly the fine-tuned ResNet vs the weaker frozen arms) -- but that
+> omnibus signal is not evidence that Cell-DINO specifically beats the generic-pretraining
+> cluster.
 
 ## What this shows
 
-**1. A newer DINO generation does not escape the domain-vs-generic pattern already established
-in this benchmark.** DINOv3-Base (0.5804) lands in the same tight cluster as DINOv2-Base
-(0.5796), DINOv2-Large (0.5790), CLIP-L under the locked recipe (0.5798), and BiomedCLIP
-(0.5774) -- all generically-pretrained backbones sit within about 0.003 ROC-AUC of each other,
-well below the domain-matched Cell-DINO (0.5932). Whatever architectural or training-recipe
-improvements DINOv3 brings over DINOv2 at a generic-vision level, they do not close the gap that
-domain-specific (Cell Painting) pretraining opens on this task -- reinforcing this benchmark's
-central finding that pretraining domain, not backbone generation or scale, is the dominant
-factor for frozen linear-probe performance here.
+**1. Cell-DINO is numerically ahead of every generically-pretrained backbone, but none of
+these differences are statistically distinguishable from chance under Nemenyi post-hoc
+testing.** DINOv3-Base, at 0.6332, sits in the middle of a cluster running from 0.6245
+(BiomedCLIP) to 0.6345 (DINOv2-Base) -- a 0.01 spread -- with Cell-DINO at 0.6373 only
+marginally above the top of that cluster. The previous framing ("five architectures, three
+pretraining paradigms, all converging below Cell-DINO, mostly significantly") overstated the
+strength of this evidence; the direction is consistent, but the statistical support for a
+real domain-pretraining advantage, at least at this sample size (29 assays), is weak.
 
-**2. This is a fifth independent confirmation of the same pattern.** Cell-DINO's advantage over
-generically-pretrained backbones now holds across DINOv2-Base, DINOv2-Large, BiomedCLIP,
-CLIP ViT-L/14 (locked recipe), and now DINOv3-Base -- five different architectures, three
-different pretraining paradigms (self-supervised vision-only, vision-language contrastive,
-and DINOv3's improved self-supervised recipe), all converging on the same generically-pretrained
-cluster below Cell-DINO.
+**2. This does not mean domain pretraining doesn't matter -- it means this particular
+comparison can't establish that it does, at this significance threshold.**
+A larger assay panel, more folds, or a different significance test might resolve the
+numerically-consistent-but-not-significant pattern one way or the other. As reported here,
+the honest claim is "Cell-DINO is directionally ahead of generic-pretraining backbones, not
+provably better than them."
 
 ## Method
 

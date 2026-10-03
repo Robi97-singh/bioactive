@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # Cell-DINO — Frozen Linear-Probe Arm
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -18,31 +16,38 @@ fully fine-tuned ResNet.
 
 | Arm | Regime | Input | Field of View | Test ROC-AUC (6-fold) |
 |-----|--------|-------|---------------|-----------------------|
-| **Cell-DINO @ 224** | frozen linear probe | 224 | resize 540, crop 224 = **0.415** | **0.5932 +/- 0.0065** |
+| **Cell-DINO @ 224** | frozen linear probe | 224 | resize 540, crop 224 = **0.415** | **0.6373 +/- 0.0119** |
 | ResNet50 @ 224 (fine-tuned, ref) | fine-tuned | 224 | 224/540 = 0.415 | 0.6638 +/- 0.0153 |
 | ResNet50 @ 448 (fine-tuned, ref) | fine-tuned | 448 | 448/1080 = 0.415 | 0.6792 +/- 0.0245 |
 
-Per-fold test ROC-AUC: 0.5921, 0.5967, 0.5872, 0.5991, 0.5999, 0.5840.
+Per-fold test ROC-AUC: 0.6253, 0.6454, 0.6241, 0.6496, 0.6487, 0.6306.
+
+> **Note (2026-10-03):** numbers corrected for compound-level aggregation. The frozen-to-
+> fine-tuned gap shrinks substantially (was ~7 points, now ~2.65), and the CV spread
+> comparison below is updated accordingly.
 
 ## What this shows
 
-**1. Frozen domain-pretrained features underperform full fine-tuning — by a consistent margin.**
-At a matched field of view (0.415), the frozen Cell-DINO linear probe reaches 0.5932,
-about 7 ROC-AUC points below the fine-tuned ResNet at the same resolution (0.6638).
-Fine-tuning adapts the whole network to the 29 assays; a linear probe can only reweight
-fixed features, so this gap is expected and quantifies the value of adaptation on this task.
+**1. Frozen domain-pretrained features still underperform full fine-tuning, but by a much
+smaller margin than previously reported.**
+At a matched field of view (0.415), the frozen Cell-DINO linear probe reaches 0.6373, about
+2.65 ROC-AUC points below the fine-tuned ResNet at the same resolution (0.6638) -- down from
+the previously-reported ~7-point gap. Fine-tuning still adapts the whole network while a
+linear probe can only reweight fixed features, so a gap is still expected, just a more modest
+one than originally measured.
 
-**2. The frozen result is markedly more stable across folds.**
-The Cell-DINO CV spread is +/-0.0065, less than half the fine-tuned ResNet's +/-0.0153.
-A linear probe on frozen features is a near-convex problem with a single stable optimum,
-so fold-to-fold variance is low. That tight spread is itself evidence the number is a real
-ceiling of the features, not an artifact of optimisation.
+**2. The frozen result remains fairly stable across folds, though not dramatically more so
+than the fine-tuned ResNet.**
+Cell-DINO's CV spread is now +/-0.0119, about three-quarters of the fine-tuned ResNet's
++/-0.0153 -- still somewhat tighter, but not the "less than half" previously reported. Some of
+the apparent extra stability in the original per-image numbers may itself have been an
+artifact of how the bug affected variance estimation, not a genuine property being
+systematically under- or overstated in one consistent direction.
 
-**3. The number is robust to probe hyperparameters.**
-Feature standardization made no material difference (0.5801 raw vs 0.5790 standardized on
-fold 0), and a learning-rate sweep (0.005 / 0.02 / 0.1) moved the fold-0 test score only
-within ~0.58-0.59, converging cleanly at lr=0.02. The ~0.59 result is therefore a genuine
-property of the frozen features, not under-training.
+**3. The hyperparameter-robustness checks described below were run during original,
+pre-correction experimentation** (feature standardization and learning-rate sweep on fold 0),
+and describe the exploratory process rather than the final reported numbers above -- they are
+retained for methodological context, not as a claim about the current 0.6373 figure.
 
 ## Method (linear-probe recipe, applied identically to every frozen backbone)
 

@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv2-Large -- Frozen Linear-Probe Arm @ 448 (Resolution Axis)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -10,41 +8,46 @@ DINOv2-Base and Cell-DINO resolution arms, this confirms whether the 224->448 re
 benefit seen in DINOv2-Base also holds at larger scale (DINOv2-Large, 304M params). Public
 benchmark reference: **0.660 +/- 0.094**.
 
-## Result -- resolution helps DINOv2-Large too, same pattern as DINOv2-Base
+## Result -- resolution HURTS DINOv2-Large too (reversed from the pre-fix finding)
 
 | Backbone | Regime | 224 | 448 | resolution effect |
 |-----|--------|-----|-----|-------------------|
-| DINOv2-Base (frozen) | ImageNet | 0.5796 +/- 0.0067 | 0.5890 +/- 0.0046 | +0.94 pt |
-| **DINOv2-Large** (frozen) | ImageNet | **0.5790 +/- 0.0066** | **0.5888 +/- 0.0071** | **+0.98 pt** |
-| Cell-DINO (frozen) | Cell Painting | 0.5932 +/- 0.0065 | 0.5928 +/- 0.0067 | ~0 |
-| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +1.5 pt |
+| DINOv2-Base (frozen) | ImageNet | 0.6345 +/- 0.0162 | 0.6211 +/- 0.0084 | -0.0134 |
+| **DINOv2-Large** (frozen) | ImageNet | **0.6313 +/- 0.0202** | **0.6216 +/- 0.0195** | **-0.0097** |
+| Cell-DINO (frozen) | Cell Painting | 0.6373 +/- 0.0119 | 0.6203 +/- 0.0115 | -0.0170 |
+| DINOv3-Base (frozen) | ImageNet | 0.6332 +/- 0.0142 | 0.6448 +/- 0.0180 | +0.0116 |
+| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +0.0154 |
 
-DINOv2-Large 448 per-fold test ROC-AUC: 0.5858, 0.5874, 0.5797, 0.5917, 0.6011, 0.5870.
+DINOv2-Large 448 per-fold test ROC-AUC: 0.5993, 0.6182, 0.6109, 0.6338, 0.6540, 0.6133.
 
-Paired 224 -> 448 change: +0.0077, +0.0111, +0.0114, +0.0039, +0.0188, +0.0058.
-**DINOv2-Large improves at 448 in all 6 of 6 folds** (+0.98 ROC-AUC points on average) --
-matching DINOv2-Base's per-fold consistency almost exactly.
+Paired 224 -> 448 change: -0.0184, -0.0089, +0.0103, -0.0205, +0.0060, -0.0272.
+**DINOv2-Large is worse at 448 in 4 of 6 folds** (-0.0097 on average), closely matching
+DINOv2-Base's reversal.
+
+> **Note (2026-10-03):** before the fix, this arm was reported matching DINOv2-Base's clean
+> resolution gain ("+0.98 points, 6 of 6 folds"). Corrected, the effect reverses in the same
+> direction and magnitude as DINOv2-Base -- both ImageNet-pretrained DINOv2 sizes now show a
+> modest resolution *penalty*, not a benefit.
 
 ## What this shows
 
-**1. The resolution benefit for DINOv2-family backbones is scale-independent.**
-DINOv2-Base gains +0.94 points going 224 -> 448; DINOv2-Large gains +0.98 points -- the same
-effect size, within noise, despite a 3.5x difference in parameter count. Whatever makes higher
-resolution help this architecture family (finer patch-level detail relative to native
-pretraining resolution) does not depend on model size.
+**1. The resolution reversal is scale-independent, same as the original (now-superseded)
+resolution benefit was claimed to be.**
+DINOv2-Base loses 0.0134 points at 448; DINOv2-Large loses 0.0097 -- the same effect, within
+noise, despite a 3.5x parameter difference. Whatever drives this (now negative) resolution
+sensitivity for DINOv2-family backbones does not depend on model size, same as before, just
+with the opposite sign.
 
-**2. This reinforces, rather than complicates, the earlier scale-ladder finding.**
-DINOv2-Large and DINOv2-Base remain statistically indistinguishable at 224 (Nemenyi p=0.997)
-and now show near-identical resolution sensitivity at 448 as well. Two independent axes (raw
-performance, and response to resolution) both show scale alone changes nothing about this
-backbone's behaviour -- consistent with finding #2 in the main benchmark README (scale alone
-does not help, frozen).
+**2. This still reinforces the scale-ladder finding from the 224 comparison, from the other
+direction.** DINOv2-Base and DINOv2-Large remain statistically indistinguishable at 224
+(Nemenyi p=1.0000) and now show near-identical resolution sensitivity at 448 as well --
+two independent axes both confirm scale alone changes nothing about this backbone family's
+behavior on this task.
 
-**3. Resolution's benefit is still model-dependent overall, not just size-dependent.**
-Both DINOv2 variants gain about a point at 448; Cell-DINO (pretrained on 128px crops) gains
-essentially nothing. The determining factor remains proximity to the backbone's own
-pretraining resolution, not parameter count, architecture family alone, or frozen-vs-fine-tuned
-status.
+**3. DINOv3-Base, not either DINOv2 size, is the exception that needs explaining.**
+With both DINOv2 sizes and Cell-DINO now agreeing that 448 is a net loss for frozen features
+here, DINOv3-Base's improvement at 448 is the finding that actually needs a mechanistic
+account -- not DINOv2's (illusory) 224-vs-448 gain, which this correction has removed.
 
 ## Method
 

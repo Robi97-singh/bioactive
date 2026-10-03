@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv2-Base — Frozen Linear-Probe Arm (ImageNet baseline)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -10,36 +8,45 @@ linear-probe recipe as Cell-DINO. This is the **generic-pretraining baseline**: 
 whether a strong general-purpose self-supervised backbone matches domain-specific (Cell Painting)
 pretraining on cell images. Public benchmark reference: **0.660 ± 0.094**.
 
-## Result — domain pretraining beats generic ImageNet, frozen
+## Result -- domain pretraining has a small, non-significant edge, not a clean win
 
 | Backbone @ 224 | Pretraining | Params | Test ROC-AUC (6-fold) |
 |-----|-------------|--------|-----------------------|
-| **Cell-DINO** (frozen) | Cell Painting (domain) | 21.5M | **0.5932 +/- 0.0065** |
-| **DINOv2-Base** (frozen) | ImageNet (generic) | 86M | **0.5796 +/- 0.0067** |
+| **Cell-DINO** (frozen) | Cell Painting (domain) | 21.5M | **0.6373 +/- 0.0119** |
+| **DINOv2-Base** (frozen) | ImageNet (generic) | 86M | **0.6345 +/- 0.0162** |
 | ResNet50 (fine-tuned, ref) | ImageNet | 25M | 0.6638 +/- 0.0153 |
 
-DINOv2 per-fold test ROC-AUC: 0.5830, 0.5749, 0.5688, 0.5831, 0.5873, 0.5803.
+DINOv2 per-fold test ROC-AUC: 0.6252, 0.6237, 0.6154, 0.6528, 0.6548, 0.6349.
 
-Paired per-fold comparison (Cell-DINO - DINOv2): +0.0091, +0.0218, +0.0184, +0.0160, +0.0126, +0.0037.
-**Cell-DINO wins in all 6 of 6 folds.**
+Paired per-fold comparison (Cell-DINO - DINOv2): +0.0001, +0.0217, +0.0087, -0.0032, -0.0061, -0.0043.
+**Cell-DINO wins 3 of 6 folds, DINOv2 wins 3 of 6** -- an even split. Nemenyi post-hoc test:
+Cell-DINO vs DINOv2-Base p=0.7693 (not significant).
+
+> **Note (2026-10-03):** before the frozen-backbone evaluation fix, this arm was reported as
+> "Cell-DINO wins in all 6 of 6 folds" with a 1.4-point mean gap. Under correct compound-level
+> aggregation, the mean gap shrinks to 0.3 points, the fold-win count is an even 3-3 split, and
+> the difference is not statistically significant (Nemenyi p=0.77). This is a substantial
+> softening of the original finding, not just a number update.
 
 ## What this shows
 
-**1. Domain-specific pretraining beats generic ImageNet pretraining - frozen, on every fold.**
-Cell-DINO (pretrained on Cell Painting) outperforms DINOv2 (pretrained on ImageNet) by ~1.4
-ROC-AUC points, and the win is consistent across all six folds. For frozen feature extraction
-on cell images, *what the backbone was pretrained on* matters more than raw model quality.
+**1. Domain-specific pretraining shows a small numerical edge over generic ImageNet
+pretraining, frozen -- but it is not a consistent, significant win.**
+Cell-DINO's mean (0.6373) is marginally above DINOv2's (0.6345), but the two split folds
+evenly and are statistically indistinguishable by Nemenyi post-hoc test. The original claim
+that domain pretraining "wins on every fold" does not survive correction.
 
-**2. Domain beats scale.**
-DINOv2-Base is the larger model (86M params, 768-dim embedding) yet loses to the smaller
-Cell-DINO (21.5M params, 384-dim). The advantage is not capacity - it is representational fit.
-Cell-morphology pretraining produces features better aligned to bioactivity than generic
-natural-image pretraining, even from a smaller network.
+**2. Scale still doesn't explain the (now much smaller) gap either way.**
+DINOv2-Base is the larger model (86M params, 768-dim) and Cell-DINO is smaller (21.5M, 384-dim);
+whatever tiny edge Cell-DINO has is not attributable to capacity, but given the edge is itself
+not significant, this is a weaker observation than previously framed.
 
-**3. Both frozen backbones sit below the fine-tuned ResNet.**
-Neither frozen backbone reaches the fine-tuned ResNet-224 (0.6638); frozen features leave
-performance on the table versus full adaptation (see the Cell-DINO arm). But among frozen
-options, domain pretraining is the better starting point.
+**3. Both frozen backbones sit modestly, but not always significantly, below the fine-tuned
+ResNet.** The gap to ResNet (0.6638) is now ~2.65-2.93 points, down from ~7 points pre-fix.
+Nemenyi shows Cell-DINO vs ResNet is *not* significant (p=0.7693) -- Cell-DINO's frozen score
+is statistically indistinguishable from the fine-tuned model -- while DINOv2-Base vs ResNet is
+borderline (p=0.0546). The clean "frozen clearly underperforms fine-tuning" story from the
+original README does not hold uniformly across backbones.
 
 ## Method
 

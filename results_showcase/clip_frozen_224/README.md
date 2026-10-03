@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # CLIP ViT-L/14 — Frozen Linear-Probe Arm (locked recipe)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -17,39 +15,39 @@ project's methods on cross-account comparability). Public benchmark reference: *
 
 | Frozen backbone @ 224 | Pretraining | Params | Test ROC-AUC (6-fold) |
 |-----|-------------|--------|-----------------------|
-| Cell-DINO | Cell Painting | 21.5M | 0.5932 +/- 0.0065 |
-| **CLIP ViT-L/14** (this arm) | Web image-text (OpenAI) | 304M | **0.5798 +/- 0.0038** |
-| DINOv2-Base | ImageNet | 86M | 0.5796 +/- 0.0067 |
-| BiomedCLIP | Biomedical image-text | 86M | 0.5774 +/- 0.0060 |
+| Cell-DINO | Cell Painting | 21.5M | 0.6373 +/- 0.0119 |
+| DINOv2-Base | ImageNet | 86M | 0.6345 +/- 0.0162 |
+| DINOv2-Large | ImageNet | 304M | 0.6313 +/- 0.0202 |
+| **CLIP ViT-L/14** (this arm) | Web image-text (OpenAI) | 304M | **0.6267 +/- 0.0164** |
+| BiomedCLIP | Biomedical image-text | 86M | 0.6245 +/- 0.0166 |
 | ResNet50 (fine-tuned, ref) | ImageNet | 25M | 0.6638 +/- 0.0153 |
 
-CLIP per-fold test ROC-AUC: 0.5770, 0.5806, 0.5741, 0.5801, 0.5849, 0.5818 (tightest spread of
-any frozen arm: std 0.0038).
+CLIP per-fold test ROC-AUC: 0.6094, 0.6309, 0.6028, 0.6404, 0.6381, 0.6383.
+
+> **Note (2026-10-03):** numbers corrected for compound-level aggregation. CLIP-L's std rose
+> from 0.0038 to 0.0164 -- it is no longer the tightest cross-fold spread among frozen arms,
+> that distinction no longer holds under correct scoring. The previous Finding 2, comparing
+> this locked-recipe result against a separately-run AdamW-trained variant, has been removed:
+> only the locked linear-probe recipe (identical across every frozen arm in this benchmark)
+> is reported here, so comparisons against differently-trained variants are out of scope for
+> this README.
 
 ## What this shows
 
-**1. Under the project's locked probing recipe, CLIP-L lands with the other small/mid frozen
-backbones, not above them.**
-At 0.5798, CLIP-L is statistically indistinguishable from DINOv2-Base (0.5796) and BiomedCLIP
-(0.5774), and below the domain-matched Cell-DINO (0.5932) — despite being 3.5-14x larger than
-every other model in the comparison. Raw model scale does not, by itself, translate into a
-better *linearly-probed* representation once the probing procedure is held fixed.
+**1. Under the project's locked probing recipe, CLIP-L lands near the bottom of the frozen
+cluster, not above it.**
+At 0.6267, CLIP-L sits above only BiomedCLIP (0.6245) among the six frozen backbones compared
+across this benchmark, despite being 3.5-14x larger than every other model in the comparison.
+Raw model scale does not, by itself, translate into a better *linearly-probed* representation
+once the probing procedure is held fixed -- consistent with the scale-invariance finding
+reported elsewhere in this benchmark (see DINOv2-Large's README).
 
-**2. The probing recipe matters as much as the backbone (recipe-sensitivity finding).**
-The same CLIP ViT-L/14 backbone, probed with a different training procedure (AdamW, lr=1e-4,
-full image-based training rather than the precompute-then-probe SGD/cosine/standardized
-recipe used here), reaches **0.6312 +/- 0.0188** — a ~5 ROC-AUC point difference from the
-*identical frozen features*. This is a larger swing than most of the between-backbone
-differences reported elsewhere in this benchmark, and it is a genuine methodological caution:
-comparing frozen backbones is only meaningful when the probing recipe is held constant. Every
-other arm in this benchmark uses the single locked recipe (SGD momentum 0.9, cosine schedule,
-lr=0.02, train-only feature standardization, patience 6) specifically to avoid this confound;
-this CLIP arm is the direct evidence for why that discipline matters.
+**2. Cross-fold spread is unremarkable once correctly scored.**
+CLIP-L's std (0.0164) is now in the same range as the other frozen arms (0.0119-0.0202) --
+the previously-reported "tightest spread of any arm" was itself a symptom of the per-image
+evaluation bug, not a genuine property of this backbone's stability.
 
-**3. Tightest cross-fold spread of any arm (std 0.0038).**
-Consistent with CLIP-L's scale, its frozen features give a highly stable linear-probe result
-across folds, even though the recipe used here does not surface its full capacity relative to
-the AdamW-trained variant.
+## Method
 
 ## Method
 

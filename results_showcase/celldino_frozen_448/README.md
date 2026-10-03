@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # Cell-DINO — Frozen Linear-Probe Arm @ 448 (Resolution Axis)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -9,42 +7,49 @@ Same frozen linear-probe pipeline as the Cell-DINO @ 224 arm, run at 448 input t
 whether higher resolution helps frozen cell-pretrained features. Public benchmark
 reference: **0.660 ± 0.094**.
 
-## Result — resolution makes no difference for a frozen backbone
+## Result -- resolution modestly HURTS this frozen backbone
 
 | Arm | Regime | Input | Field of View | Test ROC-AUC (6-fold) |
 |-----|--------|-------|---------------|-----------------------|
-| **Cell-DINO @ 224** | frozen linear probe | 224 | resize 540, crop 224 = 0.415 | 0.5932 +/- 0.0065 |
-| **Cell-DINO @ 448** | frozen linear probe | 448 | crop 448 from 1080 = 0.415 | 0.5928 +/- 0.0067 |
+| **Cell-DINO @ 224** | frozen linear probe | 224 | resize 540, crop 224 = 0.415 | **0.6373 +/- 0.0119** |
+| **Cell-DINO @ 448** | frozen linear probe | 448 | crop 448 from 1080 = 0.415 | **0.6203 +/- 0.0115** |
 | ResNet50 @ 224 (fine-tuned, ref) | fine-tuned | 224 | 0.415 | 0.6638 +/- 0.0153 |
 | ResNet50 @ 448 (fine-tuned, ref) | fine-tuned | 448 | 0.415 | 0.6792 +/- 0.0245 |
 
-448 per-fold test ROC-AUC: 0.5924, 0.5967*, 0.5870, 0.5989, 0.5975, 0.5828.
-(*fold-1 aggregate value; per-fold spread matches the 224 arm within noise.)
+448 per-fold test ROC-AUC: 0.6157, 0.6284, 0.6160, 0.6330, 0.6269, 0.6017.
 
-The 224 and 448 frozen results differ by **0.0004** — statistically identical. At a matched
-field of view (0.415), doubling the input resolution does not move the frozen Cell-DINO number.
+Paired 224 -> 448 change: -0.0096, -0.0170, -0.0081, -0.0166, -0.0218, -0.0289.
+**448 is worse than 224 in all 6 of 6 folds** (-0.0170 on average).
+
+> **Note (2026-10-03):** before the frozen-backbone evaluation fix, this arm was reported
+> as "224 and 448 are statistically identical" (0.5932 vs 0.5928). Under correct
+> compound-level aggregation, 448 is consistently *worse*, not equal -- the direction of
+> this finding has changed, not just its magnitude.
 
 ## What this shows
 
-**1. Higher resolution does not help a frozen backbone.**
-224 and 448 land on top of each other (0.5932 vs 0.5928). The frozen backbone produces
-essentially the same CLS embedding at both resolutions, so the linear head has the same
-information to work with either way.
+**1. Higher resolution does not help this frozen backbone -- if anything, it modestly hurts.**
+Every one of the 6 folds favors 224 over 448, by 1.7 ROC-AUC points on average. This is the
+opposite of what the fine-tuned ResNet shows, and also the opposite of what DINOv3-Base shows
+at the same two resolutions (see that arm's README) -- resolution sensitivity is backbone-
+specific, and for Cell-DINO specifically, 448 is a net loss, not a neutral non-effect.
 
-**2. This is the opposite of the fine-tuned ResNet, and that contrast is the point.**
-Fine-tuned ResNet gained ~1.5 ROC-AUC points going 224 -> 448 (0.6638 -> 0.6792). The value
-of extra resolution is unlocked by **fine-tuning** — a network that can adapt its weights
-learns to exploit the finer detail. A frozen backbone cannot adapt, so the extra pixels
-carry no benefit it can use.
+**2. The contrast with fine-tuning is still the headline, just sharper than before.**
+Fine-tuned ResNet gains ~1.5 points going 224 -> 448 (0.6638 -> 0.6792); frozen Cell-DINO
+*loses* ~1.7 points over the same change. A network that can adapt its weights learns to
+exploit the finer detail; a frozen backbone cannot adapt, and here the extra resolution
+appears to actively work against the fixed representation rather than simply being unused.
 
-**3. Position-embedding extrapolation compounds the effect.**
-Cell-DINO was pretrained at 128px (patch-8, 256 tokens). At 224 the model already interpolates
-its position embeddings to 784 tokens; at 448 it stretches them to 3,136 tokens (a ~12x
-extrapolation from pretraining). The frozen features were never trained to use information at
-that token density, so the added resolution arrives in a form the representation cannot exploit.
+**3. Position-embedding extrapolation is a plausible contributor, but why 448 actively hurts
+(not just fails to help) isn't established by this experiment alone.**
+Cell-DINO was pretrained at 128px (patch-8, 256 tokens); at 224 it already interpolates to
+784 tokens, at 448 to 3,136 (~12x). That this produces features the linear head finds
+*harder* to use than the 224 features -- not just equally good -- would need direct inspection
+of the embeddings to confirm, not just inferred from the AUC gap.
 
-**Takeaway:** for this task, resolution is a fine-tuning lever, not a feature-extraction lever.
-Reporting a frozen backbone at higher resolution is not worth the ~4x compute cost.
+**Takeaway:** for this task, resolution remains a fine-tuning lever, not a feature-extraction
+lever -- and for this particular frozen backbone, pushing resolution without fine-tuning is
+actively counterproductive, not merely wasted compute.
 
 ## Method
 

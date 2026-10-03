@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv2-Small — Frozen Linear-Probe Arm (same-backbone baseline for LoRA)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -13,43 +11,56 @@ This arm closes that confound and gives a genuine apples-to-apples baseline. It 
 scale-invariance finding (see DINOv2-Base's README) to a third size point. Public benchmark
 reference: **0.660 ± 0.094**.
 
-## Result — a third data point confirming scale doesn't matter, frozen
+## Result -- scale still doesn't clearly separate the three sizes, but LoRA's gap-recovery number changes substantially
 
 | Backbone @ 224 | Pretraining | Params | Test ROC-AUC (6-fold) |
 |-----|-------------|--------|-----------------------|
-| **DINOv2-Small** (frozen) | ImageNet (generic) | 22M | **0.5786 +/- 0.0051** |
-| **DINOv2-Base** (frozen) | ImageNet (generic) | 86M | 0.5796 +/- 0.0067 |
-| DINOv2-Large (frozen, ref) | ImageNet (generic) | 305M | 0.5790 +/- 0.0071 |
-| **DINOv2-Small + LoRA** (adapted) | ImageNet (generic) | 22M (2.4% trained) | 0.6373 +/- 0.0203 |
+| **DINOv2-Small** (frozen) | ImageNet (generic) | 22M | **0.6283 +/- 0.0144** |
+| **DINOv2-Base** (frozen) | ImageNet (generic) | 86M | 0.6345 +/- 0.0162 |
+| DINOv2-Large (frozen, ref) | ImageNet (generic) | 305M | 0.6313 +/- 0.0202 |
+| **DINOv2-Small + LoRA** (adapted) | ImageNet (generic) | 22M (2.4% trained) | 0.6373 +/- 0.0185 |
 | ResNet50 (fine-tuned, ref) | ImageNet | 25M | 0.6638 +/- 0.0153 |
 
-DINOv2-Small per-fold test ROC-AUC: 0.5746, 0.5779, 0.5721, 0.5847, 0.5841, 0.5780.
+DINOv2-Small per-fold test ROC-AUC: 0.6150, 0.6266, 0.6120, 0.6513, 0.6364, 0.6284.
 
-Paired per-fold comparison (DINOv2-Base − DINOv2-Small): +0.0084, −0.0030, −0.0033, −0.0016,
-+0.0032, +0.0023. **Base wins 3 of 6 folds, Small wins 3 of 6 folds** — a coin flip, confirming
-the two sizes are not meaningfully different despite a 4x parameter gap.
+Paired per-fold comparison (DINOv2-Base - DINOv2-Small): +0.0102, -0.0029, +0.0034, +0.0015,
++0.0184, +0.0065. **Base now wins 5 of 6 folds** (mean +0.0062) -- more consistent than the
+pre-fix "coin flip" (3-3), though the gap remains modest.
+
+> **Note (2026-10-03):** before the fix, Base vs Small was reported as an even 3-3 split
+> (differences within +/-0.001). Corrected, Base wins 5 of 6 folds, though the margin per fold
+> is still small. More importantly: the LoRA gap-recovery calculation below changes from
+> **68.9% to approximately 25%** -- LoRA's own number was unaffected by the bug (it was already
+> compound-aggregated), but the frozen DINOv2-Small baseline it's compared against rose sharply
+> (0.5786 -> 0.6283), which mechanically shrinks the "gap left to recover."
 
 ## What this shows
 
-**1. Scale still doesn't matter, frozen — now across three sizes, not two.**
-DINOv2-Small (22M), DINOv2-Base (86M), and DINOv2-Large (305M) land within 0.001 ROC-AUC of
-each other (0.5786 / 0.5796 / 0.5790). A 14x range in parameter count, same architecture family,
-same frozen recipe, produces no meaningful difference in frozen feature quality. This is the same
-conclusion the Base-vs-Large comparison already showed, now confirmed at a third point.
+**1. Scale still shows no clean, monotonic trend across the three DINOv2 sizes.**
+DINOv2-Small (22M) = 0.6283, DINOv2-Large (305M) = 0.6313, DINOv2-Base (86M) = 0.6345 --
+Base is numerically highest despite being neither the smallest nor the largest model, so
+there is still no evidence that scale alone drives frozen performance here. The spread
+(0.0062) is wider than pre-fix (0.001) but still modest relative to other effects in this
+benchmark.
 
-**2. This closes a real confound in the LoRA gap-recovery number.**
-LoRA adapts DINOv2-Small specifically, not DINOv2-Base. With a genuine same-size frozen baseline
-(0.5786) instead of DINOv2-Base's (0.5796), the gap-recovery calculation is no longer mixing
-"benefit of adaptation" with "benefit of a different base model size" — both are DINOv2-Small,
-only the training regime (frozen vs. LoRA-adapted) differs. Recovered fraction of the
-frozen-to-fine-tuned gap: (0.6373 − 0.5786) / (0.6638 − 0.5786) = **68.9%**, at 2.4% of the
-trainable parameters.
+**2. LoRA's gap-recovery claim drops from 68.9% to ~25% -- this is the most consequential
+single change from the evaluation fix anywhere in this project.**
+LoRA (0.6373) was already evaluated correctly before the fix (its CNN-style pipeline always
+aggregated by compound), so its number is unchanged. What changed is the frozen DINOv2-Small
+baseline it's compared against, which rose from 0.5786 to 0.6283 once its own evaluation was
+corrected. Recovered fraction of the frozen-to-fine-tuned gap is now:
+(0.6373 - 0.6283) / (0.6638 - 0.6283) = **25.4%**, at 2.4% of the trainable parameters --
+not the 68.9% previously reported. LoRA still closes *some* of the gap, but the originally-
+reported "LoRA recovers most of the frozen-to-fine-tuned gap" headline does not survive
+correction; adaptation still helps, but the frozen baseline was simply much closer to LoRA
+than previously measured.
 
-**3. Frozen DINOv2-Small still sits well below both LoRA and full fine-tuning.**
-As with every frozen arm, the ceiling is adaptation, not backbone choice: moving from frozen
-(0.5786) to LoRA-adapted (0.6373) on the *same* backbone recovers most of the remaining gap to
-full fine-tuning (0.6638) — evidence that *how much* of the model is allowed to train matters far
-more than *which* frozen backbone is chosen.
+**3. The adaptation spectrum (frozen -> LoRA -> fine-tuned) is now much more compressed.**
+Frozen DINOv2-Small (0.6283) to LoRA (0.6373) is a gap of 0.009; LoRA to full fine-tuning
+(0.6638) is a gap of 0.0265. The overall frozen-to-fine-tuned spread (0.6283 to 0.6638 =
+0.0355) is itself much smaller than the pre-fix spread (0.5786 to 0.6638 = 0.0852) -- most of
+what looked like "headroom for adaptation" in the original analysis was actually the
+evaluation bug depressing the frozen baseline, not real headroom LoRA or fine-tuning recover.
 
 ## Method
 

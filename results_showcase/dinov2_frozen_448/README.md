@@ -1,5 +1,3 @@
-> **[EVALUATION FIX, 2026-10-03]** The ROC-AUC numbers below predate a correction to the frozen-backbone evaluation pipeline (predictions were scored per-image instead of aggregated per-compound, underestimating AUC by ~0.02-0.05). Corrected `cv_summary.csv`/`cv_per_assay.csv` (and plots, where applicable) are in this folder; the tables/prose below are not yet updated. See the root README's "Evaluation protocol fix" section for corrected numbers and full explanation.
-
 # DINOv2-Base — Frozen Linear-Probe Arm @ 448 (Resolution Axis)
 
 Replication and extension of Fredin Haslum et al., *Nature Communications* 15:3470 (2024),
@@ -9,42 +7,50 @@ Same frozen linear-probe pipeline as DINOv2 @ 224, run at 448 input. Together wi
 Cell-DINO resolution arms, this answers whether higher resolution helps frozen backbones -
 and the answer turns out to be model-dependent. Public benchmark reference: **0.660 ± 0.094**.
 
-## Result — resolution HELPS DINOv2 (unlike Cell-DINO)
+## Result -- resolution HURTS DINOv2-Base (reversed from the pre-fix finding)
 
 | Backbone | Regime | 224 | 448 | resolution effect |
 |-----|--------|-----|-----|-------------------|
-| **DINOv2-Base** (frozen) | ImageNet | 0.5796 +/- 0.0067 | **0.5890 +/- 0.0046** | **+0.94 pt** |
-| Cell-DINO (frozen) | Cell Painting | 0.5932 +/- 0.0065 | 0.5928 +/- 0.0067 | ~0 |
-| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +1.5 pt |
+| **DINOv2-Base** (frozen) | ImageNet | **0.6345 +/- 0.0162** | **0.6211 +/- 0.0084** | **-0.0134** |
+| Cell-DINO (frozen) | Cell Painting | 0.6373 +/- 0.0119 | 0.6203 +/- 0.0115 | -0.0170 |
+| DINOv3-Base (frozen) | ImageNet | 0.6332 +/- 0.0142 | 0.6448 +/- 0.0180 | +0.0116 |
+| ResNet50 (fine-tuned) | ImageNet | 0.6638 +/- 0.0153 | 0.6792 +/- 0.0245 | +0.0154 |
 
-DINOv2 448 per-fold test ROC-AUC: 0.5906, 0.5876, 0.5804, 0.5904, 0.5932, 0.5919.
+DINOv2 448 per-fold test ROC-AUC: 0.6122, 0.6265, 0.6229, 0.6104, 0.6324, 0.6223.
 
-Paired 224 -> 448 change: +0.0076, +0.0127, +0.0116, +0.0073, +0.0059, +0.0116.
-**DINOv2 improves at 448 in all 6 of 6 folds** (+0.94 ROC-AUC points on average).
+Paired 224 -> 448 change: -0.0130, +0.0028, +0.0075, -0.0424, -0.0224, -0.0126.
+**DINOv2-Base is worse at 448 in 4 of 6 folds** (-0.0134 on average).
+
+> **Note (2026-10-03):** before the frozen-backbone evaluation fix, this arm was reported as
+> DINOv2's clean win -- "+0.94 points, 6 of 6 folds improve." Under correct compound-level
+> aggregation, the effect reverses: DINOv2-Base is now *worse* at 448 on average, and only
+> wins in 2 of 6 folds. Cell-DINO shows the same reversal (see its own README); DINOv3-Base
+> is now the only frozen backbone in this comparison that still benefits from 448 (see its
+> README). This is a full reversal of the original finding, not a magnitude change.
 
 ## What this shows
 
-**1. Resolution's benefit for a frozen backbone is model-dependent - it is NOT a simple
-frozen-vs-fine-tuned effect.**
-DINOv2 gains +0.94 points going 224 -> 448, in every fold. Cell-DINO, run identically, gains
-nothing (0.5932 -> 0.5928). So "frozen backbones can't use extra resolution" is false: it
-depends on the backbone.
+**1. Resolution does not reliably help frozen backbones here -- if anything it tends to hurt,
+and DINOv3-Base is the exception, not DINOv2.**
+The original story ("DINOv2 benefits from resolution, Cell-DINO doesn't") is backwards under
+correct scoring: DINOv2-Base and Cell-DINO both get worse at 448, while DINOv3-Base is the
+one backbone in this family that improves. Whatever separates DINOv3-Base from DINOv2-Base
+here is not captured by the "pretraining resolution proximity" story used previously, since
+both are ImageNet-pretrained ViTs of similar design.
 
-**2. The difference tracks pretraining resolution and patch size.**
-DINOv2 (ViT-B/14) was pretrained at 224px and is known to handle multi-resolution inference
-well; at 448 it moves 256 -> 1,024 tokens, a modest 4x that stays within its usable range,
-so the finer spatial detail helps. Cell-DINO (ViT-S/8) was pretrained at 128px; it is already
-extrapolating its position embeddings hard at 224 (256 -> 784 tokens) and even harder at 448
-(256 -> 3,136, ~12x), so it is off-distribution either way and the extra pixels add no usable
-signal. A frozen backbone benefits from higher resolution only when the new resolution stays
-close to what it was pretrained on.
+**2. The previous mechanistic explanation (patch size / pretraining resolution proximity) no
+longer fits the data and has not been replaced with a new one.**
+The old argument -- DINOv2 handles 448 well because it stays within its usable multi-resolution
+range, while Cell-DINO's ViT-S/8 position embeddings are already over-extrapolated at 224 --
+predicted DINOv2 should benefit and Cell-DINO shouldn't. Both now get worse. Establishing why
+DINOv3-Base alone benefits would need direct inspection (e.g. probing the cached embeddings
+at both resolutions), not just inference from the AUC table.
 
-**3. Higher resolution narrows the domain-pretraining gap.**
-At 224, domain-pretrained Cell-DINO (0.5932) leads ImageNet DINOv2 (0.5796) by ~1.4 points.
-At 448 the gap shrinks to ~0.4 points (0.5928 vs 0.5890), because resolution helps DINOv2 but
-not Cell-DINO. The domain advantage is real but partly a resolution-regime artifact: measured
-at each model's better resolution, the two frozen backbones are closer than the 224-only
-comparison suggests.
+**3. The fine-tuned ResNet remains the one model that reliably benefits from resolution.**
+ResNet, which can adapt its weights to use finer spatial detail, is the only architecture in
+this comparison with a clean, multi-model-consistent resolution gain. For every frozen
+backbone examined except DINOv3-Base, pushing resolution without fine-tuning is neutral-to-
+harmful, not a free improvement.
 
 ## Method
 
