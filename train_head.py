@@ -10,14 +10,36 @@ Pipeline (per --model / --res / --fold):
   2. Train nn.Linear(D, 29) with the SAME BCEMASKEDLoss the full pipeline uses.
   3. Validate every epoch with the SAME mean_roc_auc metric (val ROC-AUC),
      early-stop at patience 6 (matches ResNet regime), keep best-val head.
-  4. Evaluate the best head on the TEST split, and write per_assay_auc.csv to
+  4. Evaluate the best head on the TEST split, AGGREGATE per-image sigmoid
+     predictions to COMPOUND level (mean, grouped by compound -- matching
+     utils/metrics.py's evaluate_predictions(), which is what the fine-tuned
+     CNN pipeline uses), THEN compute AUC on the compound-level predictions.
+     Writes per_assay_auc.csv to
      {save_dir}/results/{fold_name}/plots/per_assay_auc.csv
      in the exact layout aggregate_cv.py reads (index = assay name, single
      column "test_roc_auc"). So `python aggregate_cv.py --model {model}
      --res {res}` works unchanged.
 
-Why this is comparable to the fine-tuned ResNet 0.6638:
-  same folds, same masked labels, same BCEMASKEDLoss, same mean_roc_auc metric.
+IMPORTANT (fixed 2026-10-03): earlier versions of this script computed AUC
+directly on raw per-image embeddings with NO compound-level aggregation,
+while the fine-tuned CNN pipeline (defaults/trainer.py -> utils/metrics.py
+evaluate_predictions()) always aggregates multiple site-images of the same
+compound via groupby("compound").mean() before scoring. Since every image
+of a compound carries an identical label (the label is a compound-level
+ChEMBL potency annotation, not an image-level one), per-image scoring is a
+form of pseudo-replication: correlated, non-independent observations of one
+ground truth were treated as independent samples, and skipping the
+averaging step left in per-image noise (site-to-site variability) that
+compound averaging is designed to cancel out. This under-estimated every
+frozen-backbone model's true AUC by roughly 0.04-0.05 in this project's
+retrospective audit. See README.md "Evaluation protocol fix" section for
+the full writeup and before/after numbers. All historical results were
+corrected in place (original per-image files preserved as
+*_per_image_UNCORRECTED.csv next to the corrected ones).
+
+Why this is comparable to the fine-tuned ResNet 0.6638 / 0.6792:
+  same folds, same masked labels, same BCEMASKEDLoss, same mean_roc_auc
+  metric, AND (as of this fix) same compound-level aggregation before AUC.
   Only the features differ (frozen backbone embeddings vs fine-tuned ResNet).
 
 Usage (CPU is fine; GPU optional and faster):
@@ -30,6 +52,8 @@ import sys
 import json
 import time
 import argparse
+import csv
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -43,6 +67,8 @@ if HERE not in sys.path:
 # Reuse the project's exact loss + metric so the number is on the ResNet scale.
 from utils._utils import BCEMASKEDLoss          # noqa: E402
 from utils.metrics import mean_roc_auc          # noqa: E402
+
+TRAINING_PAPER_CSV = "/shared/hdd/data/bioactive/training_paper.csv"
 
 
 def _load_split(emb_dir, stem, split, feature="cls"):
@@ -75,25 +101,64 @@ def _assay_names(n_classes, fold, save_dir, model, res):
     return {i: f"assay_{i}" for i in range(n_classes)}
 
 
-def _per_assay_from_metric(truths_np, preds_np, n_classes, assay_name_map):
+def _build_plate_well_to_compound(csv_path=TRAINING_PAPER_CSV):
+    """Build a (plate, well) -> Metadata_JCP2022 lookup from the master CSV.
+    Used to map per-image uids ('PLATE/WELL_SITE.png') back to the compound
+    they belong to, so predictions can be aggregated at compound level."""
+    lookup = {}
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            lookup[(row["Metadata_Plate"], row["Metadata_Well"])] = row["Metadata_JCP2022"]
+    return lookup
+
+
+def _aggregate_by_compound(logits_sigmoid, labels, uids, pw_to_compound):
     """
-    Reproduce mean_roc_auc's per-assay selection AND capture which class indices
-    were scored, so we can name them correctly. mean_roc_auc returns
-    (mean, aucs_array) but aucs_array is only the *scored* assays, in order.
-    We recompute the same selection here to pair name<->auc robustly.
+    Group per-image sigmoid predictions (and their labels) by compound,
+    averaging predictions across all site-images of the same compound.
+    Mirrors utils/metrics.py's evaluate_predictions():
+        preds[assays] = sigmoid(preds[assays]); preds.groupby("compound").mean()
+    Returns (compound_ids, labels_arr, preds_arr) as aligned numpy arrays,
+    plus the count of images that could not be mapped to a compound.
     """
+    n_classes = logits_sigmoid.shape[1]
+    compound_preds = defaultdict(lambda: [[] for _ in range(n_classes)])
+    compound_labels = {}
+    unmapped = 0
+    for i, uid in enumerate(uids):
+        parts = str(uid).split("/")
+        if len(parts) != 2:
+            unmapped += 1
+            continue
+        plate, well_site = parts
+        well = well_site.split("_")[0]
+        compound = pw_to_compound.get((plate, well))
+        if compound is None:
+            unmapped += 1
+            continue
+        for c in range(n_classes):
+            compound_preds[compound][c].append(logits_sigmoid[i, c])
+        compound_labels[compound] = labels[i]
+
+    compound_ids = sorted(compound_preds.keys())
+    preds_arr = np.array([[np.mean(compound_preds[cid][c]) for c in range(n_classes)]
+                           for cid in compound_ids])
+    labels_arr = np.array([compound_labels[cid] for cid in compound_ids])
+    return compound_ids, labels_arr, preds_arr, unmapped
+
+
+def _per_assay_auc_from_arrays(labels_arr, preds_arr, n_classes, assay_name_map):
+    """Per-assay AUC on already-aggregated (compound-level) arrays.
+    preds_arr is already sigmoid-applied; labels_arr uses the project's
+    {-1, 0, 1} masked-label convention (0 = not tested)."""
     from sklearn import metrics as skm
-
-    def _sigmoid(x):
-        return 1.0 / (1.0 + np.exp(-x))
-
-    preds = _sigmoid(preds_np)
     names, aucs = [], []
     for c in range(n_classes):
-        tar = (truths_np[:, c] + truths_np[:, c] ** 2) / 2.0
-        mask = truths_np[:, c] ** 2 > 0
+        tar = (labels_arr[:, c] + labels_arr[:, c] ** 2) / 2.0
+        mask = labels_arr[:, c] ** 2 > 0
         if tar.sum() > 0 and (mask.sum() - tar.sum()) > 0:
-            auc = skm.roc_auc_score(tar[mask], preds[:, c][mask])
+            auc = skm.roc_auc_score(tar[mask], preds_arr[:, c][mask])
             names.append(assay_name_map[c])
             aucs.append(auc)
     return names, aucs
@@ -124,6 +189,9 @@ def main():
                          "by train std) before the linear head; matches Cell-DINO's "
                          "linear-eval protocol. Stats computed on TRAIN only, "
                          "applied to all splits (no val/test leakage). 0 = raw.")
+    ap.add_argument("--training_paper_csv", default=TRAINING_PAPER_CSV,
+                    help="Path to the master CSV used to build the (plate, well) "
+                         "-> compound lookup for test-time aggregation.")
     a = ap.parse_args()
 
     torch.manual_seed(a.seed)
@@ -135,7 +203,7 @@ def main():
 
     Xtr, Ytr, _ = _load_split(emb_dir, stem, "train", a.feature)
     Xva, Yva, _ = _load_split(emb_dir, stem, "val", a.feature)
-    Xte, Yte, _ = _load_split(emb_dir, stem, "test", a.feature)
+    Xte, Yte, Ute = _load_split(emb_dir, stem, "test", a.feature)
 
     # Standardize features: subtract TRAIN mean, divide by TRAIN std. Stats come
     # ONLY from train (fitting on val/test would leak). Applied to all splits.
@@ -216,13 +284,35 @@ def main():
     head.eval()
     with torch.no_grad():
         test_logits = head(Xte.to(device)).cpu().numpy()
+    test_probs_per_image = 1.0 / (1.0 + np.exp(-test_logits))
 
-    test_mean, _ = mean_roc_auc(Yte.numpy(), test_logits, do_sigmoid=True)
+    # Also compute the uncorrected (per-image, no aggregation) number, purely
+    # for audit-trail / comparison purposes -- NOT used as the reported metric.
+    test_mean_per_image, _ = mean_roc_auc(Yte.numpy(), test_logits, do_sigmoid=True)
+
     assay_name_map = _assay_names(n_classes, a.fold, a.save_dir, a.model, a.res)
-    names, aucs = _per_assay_from_metric(Yte.numpy(), test_logits,
-                                         n_classes, assay_name_map)
-    print(f"[{stem}] TEST mean ROC-AUC = {test_mean:.4f} "
-          f"over {len(aucs)} scored assays", flush=True)
+
+    # --- Compound-level aggregation (the fix) ---------------------------------
+    if Ute is None:
+        raise RuntimeError(
+            f"No 'uids' found in cached test embeddings for {stem}; cannot "
+            f"aggregate to compound level. Re-run extract_embeddings.py with "
+            f"a version that saves uids."
+        )
+    pw_to_compound = _build_plate_well_to_compound(a.training_paper_csv)
+    compound_ids, labels_c, preds_c, unmapped = _aggregate_by_compound(
+        test_probs_per_image, Yte.numpy(), Ute, pw_to_compound)
+    if unmapped:
+        print(f"  WARNING: {unmapped} test images could not be mapped to a "
+              f"compound and were dropped from evaluation", flush=True)
+
+    names, aucs = _per_assay_auc_from_arrays(labels_c, preds_c, n_classes, assay_name_map)
+    test_mean = float(np.mean(aucs)) if aucs else float("nan")
+
+    print(f"[{stem}] TEST mean ROC-AUC (compound-level, corrected) = {test_mean:.4f} "
+          f"over {len(aucs)} scored assays "
+          f"[per-image uncorrected was {test_mean_per_image:.4f}] "
+          f"({len(compound_ids)} compounds)", flush=True)
 
     # Write per_assay_auc.csv in aggregate_cv.py's expected layout.
     fold_name = f"bioact_{a.model}_r{a.res}_fold{a.fold}"
@@ -234,17 +324,20 @@ def main():
     print(f"  wrote {os.path.join(out_plots, 'per_assay_auc.csv')} "
           f"({len(ser)} assays)", flush=True)
 
-    # Also save raw per-sample sigmoid probabilities + true labels, for
-    # per-assay ROC curves later (no re-inference or retraining needed --
-    # this is the exact test_logits already computed above, just persisted).
-    test_probs = 1.0 / (1.0 + np.exp(-test_logits))
-    pd.DataFrame(test_probs, columns=names).to_csv(
+    # Write compound-level test_preds.csv / test_labels.csv -- same format as
+    # the fine-tuned CNN pipeline (one row per compound, 'compound' index col).
+    pd.DataFrame(preds_c, columns=names if len(names) == n_classes else
+                 [assay_name_map[c] for c in range(n_classes)]).assign(
+        compound=compound_ids
+    ).set_index("compound").reset_index().to_csv(
         os.path.join(out_plots, "test_preds.csv"), index=False)
-    pd.DataFrame(Yte.numpy(), columns=names).to_csv(
+    pd.DataFrame(labels_c, columns=names if len(names) == n_classes else
+                 [assay_name_map[c] for c in range(n_classes)]).assign(
+        compound=compound_ids
+    ).set_index("compound").reset_index().to_csv(
         os.path.join(out_plots, "test_labels.csv"), index=False)
-    print(f"  wrote test_preds.csv / test_labels.csv "
-          f"({test_probs.shape[0]} samples, {test_probs.shape[1]} assays)",
-          flush=True)
+    print(f"  wrote compound-level test_preds.csv / test_labels.csv "
+          f"({len(compound_ids)} compounds, {n_classes} assays)", flush=True)
 
     # Also drop a small metrics json next to the checkpoints for convenience.
     ckpt_dir = os.path.join(a.save_dir, "checkpoints")
@@ -252,8 +345,16 @@ def main():
     with open(os.path.join(ckpt_dir, f"{fold_name}_head_metrics.json"), "w") as f:
         json.dump({"stem": stem, "best_val_roc_auc": float(best_val),
                    "test_mean_roc_auc": float(test_mean),
+                   "test_mean_roc_auc_per_image_UNCORRECTED": float(test_mean_per_image),
                    "n_scored_assays": len(aucs),
+                   "n_test_compounds": len(compound_ids),
+                   "n_unmapped_test_images": unmapped,
                    "lr": a.lr, "standardize": bool(a.standardize),
+                   "evaluation_note": ("Compound-level aggregation (mean of "
+                                       "per-image sigmoid probs, grouped by "
+                                       "compound) applied before AUC, matching "
+                                       "the fine-tuned CNN pipeline's "
+                                       "evaluate_predictions(). See README."),
                    "history": history}, f, indent=2)
 
 

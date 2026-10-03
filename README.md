@@ -74,3 +74,106 @@ Full reasoning and limitations are in `docs/Project_Bioactive_Methodology.docx`.
 ## Reference
 
 Fredin Haslum, J. et al. *Cell Painting-based bioactivity prediction boosts high-throughput screening hit-rates and compound diversity.* Nature Communications 15, 3470 (2024).
+
+## Evaluation protocol fix — frozen-backbone models (2026-10-03)
+
+### What was wrong
+
+All six-fold CV results for frozen-backbone models (DINOv2 small/base/large,
+DINOv3-Base, Cell-DINO, CLIP ViT-L/14, BiomedCLIP — anything trained via
+`extract_embeddings.py` + `train_head.py`) were computed on **raw per-image
+predictions, with no aggregation across a compound's multiple site images**.
+
+The fine-tuned CNN pipeline (`classification.py` → `defaults/trainer.py` →
+`utils/metrics.py`'s `evaluate_predictions()`) has always aggregated
+predictions to compound level before scoring:
+
+```python
+preds[assays] = sigmoid(preds[assays].values)
+preds_combined = preds.groupby("compound").mean()
+```
+
+`train_head.py` — which evaluates a linear head on cached, frozen-backbone
+embeddings — never had an equivalent step. It scored every image
+independently:
+
+```python
+test_logits = head(Xte.to(device)).cpu().numpy()
+test_mean, _ = mean_roc_auc(Yte.numpy(), test_logits, do_sigmoid=True)
+```
+
+### Why that matters
+
+Every assay label is a compound-level property (ChEMBL potency annotation,
+not an image-level one) — all site images of the same well carry an
+identical label. Scoring each image as an independent test case is
+pseudo-replication: correlated, repeated observations of one ground truth
+were fed into the AUC calculation as if they were independent samples, and
+skipping the averaging step left in per-image noise (site-to-site cell
+confluence, debris, illumination variation) that the multi-site imaging
+protocol is specifically designed to be averaged away. Single-image scoring
+systematically under-estimates a model's true compound-level discriminative
+power.
+
+### Impact
+
+Found while building a matched fluorescence baseline for a brightfield
+imaging ablation and noticing the evaluation code paths diverged. A
+retrospective audit of all frozen-backbone results showed every one
+under-reporting AUC by ~0.04–0.05:
+
+| Model | Per-image (uncorrected) | Compound-level (corrected) | Δ |
+|---|---|---|---|
+| DINOv3-Base r448 | 0.5907 | **0.6448** | +0.0541 |
+| Cell-DINO r224 | 0.5932 | 0.6373 | +0.0441 |
+| DINOv2-Base r224 | 0.5796 | 0.6345 | +0.0549 |
+| DINOv3-Base r224 | 0.5804 | 0.6332 | +0.0528 |
+| DINOv2-Large r224 | 0.5790 | 0.6313 | +0.0523 |
+| DINOv2-Small r224 | 0.5786 | 0.6283 | +0.0497 |
+| CLIP ViT-L/14 r224 | 0.5798 | 0.6267 | +0.0469 |
+| BiomedCLIP r224 | 0.5774 | 0.6245 | +0.0471 |
+
+Mean over 6 folds, all 29 assays, all `b-r-singh1` runs. (DINOv3 r224/r448
+and CLIP r224 results under `b-b-parihar` could not be corrected
+retroactively — raw per-image predictions were never saved for those runs,
+only the aggregate `per_assay_auc.csv`.)
+
+**The best frozen model changes as a result: DINOv3-Base r448 (0.6448), not
+Cell-DINO r224 (0.6373).** Fine-tuned CNN results (ResNet-50, ResNet-18,
+EfficientNet-B3) and the LoRA parameter-efficient arm were unaffected — both
+go through `trainer.py`/`metrics.py` and already aggregated by compound
+correctly.
+
+### Fix applied
+
+- `train_head.py` now builds a `(plate, well) → compound` lookup from
+  `training_paper.csv`, maps each cached embedding's `uid`
+  (`PLATE/WELL_SITE.png`) back to its compound, averages sigmoid
+  probabilities per compound, and computes AUC on the aggregated values —
+  matching `evaluate_predictions()`'s logic exactly. The old per-image mean
+  is still recorded (as `test_mean_roc_auc_per_image_UNCORRECTED` in
+  `head_metrics.json`) for audit purposes, but is no longer the reported
+  metric.
+- All historical results for the 8 affected models (48 fold-runs) were
+  corrected in place by re-aggregating their already-saved per-image
+  `test_preds.csv`/`test_labels.csv` — no retraining was needed, since the
+  frozen backbone and trained head weights were untouched by this fix. The
+  original per-image files are preserved alongside the corrected ones as
+  `test_preds_per_image_UNCORRECTED.csv`, `test_labels_per_image_UNCORRECTED.csv`,
+  and `per_assay_auc_per_image_UNCORRECTED.csv` in each fold's `plots/`
+  directory.
+
+### Still open
+
+- The top "Results" table in this README predates this fix and this
+  project's full 6-fold CV benchmark (it reports a single fixed test fold).
+  It should be regenerated from the corrected 6-fold numbers above.
+- Any figures/tables produced by `make_benchmark_figures.py`,
+  `make_comparison_figures.py`, `make_pr_calibration_pareto.py`, or the
+  Wilcoxon/Friedman–Nemenyi comparison scripts that used the old frozen-model
+  numbers need to be regenerated from the corrected `per_assay_auc.csv`
+  files.
+- Parihar's `dinov3_r224`/`dinov3_r448`/`clip_r224` runs need either a
+  version of `train_head.py` with this fix re-run, or their raw per-image
+  predictions located if they exist elsewhere, before they can be trusted
+  alongside the corrected numbers above.
