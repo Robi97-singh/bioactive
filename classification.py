@@ -27,7 +27,10 @@ MODEL_MAP = {
     "convnext":   ("convnext_base",   "bioact_convnext"),
     "vit":        ("vit_b_16",        "bioact_vit_b16"),
     "celldino":   ("celldino",        "bioact_celldino"),
+    "bf_dinov3_base": ("dinov3_base",  "bioact_brightfield_dinov3_base"),
+    "bf_celldino":    ("celldino",     "bioact_brightfield_celldino"),
     "lora_vit_s": ("lora_vit_small",  "bioact_lora_vit_small"),
+    "effnet":     ("efficientnet_b3", "bioact_efficientnet_b3"),
 }
 
 def _apply_resolution(params, res):

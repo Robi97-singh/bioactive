@@ -54,8 +54,9 @@ class BioAct(BaseSet):
     def get_data_as_list(self, dataset_location, dataset_csv_path, assays,
                          split_numbers={"train": [0, 1, 2, 3], "val": [4], "test": [5]}):
 
+        path_column = getattr(self, "path_column", "Metadata_Path")
         df = pd.read_csv(dataset_csv_path, index_col=0)
-        df = df.dropna(subset="Metadata_Path")
+        df = df.dropna(subset=path_column)
 
         df["known"] = ((df[assays].values != 0).sum(axis=1) != 0)
         df = df[df.known == 1]
@@ -72,7 +73,7 @@ class BioAct(BaseSet):
 
         labels        = data[assays].values.tolist()
         cmpds         = data["Metadata_JCP2022"].values.tolist()
-        img_paths     = data["Metadata_Path"].values.tolist()
+        img_paths     = data[path_column].values.tolist()
         full_img_path = [os.path.join(dataset_location, imp) for imp in img_paths]
 
         num_samples = len(labels)
@@ -121,6 +122,29 @@ class BioAct(BaseSet):
             return img, label, uid, cmpd
 
         return img, label, uid
+
+
+class BioActBrightfield(BioAct):
+    """Single-channel (brightfield) variant of BioAct. Reuses BioAct's
+    compound-level split/label logic untouched -- same split_number folds,
+    same 29 assays, same compounds (brightfield comes from the same
+    acquisition rows). Only channel count and image loading differ."""
+
+    img_channels = 1
+    path_column  = "Metadata_Path_Brightfield"
+
+    def init_stats(self):
+        # PLACEHOLDER -- replace with real values from
+        # 04_compute_brightfield_stats.py once images are downloaded.
+        self.mean = (0.5,)
+        self.std  = (0.25,)
+
+    def get_image_data(self, path: str):
+        img = Image.open(path)
+        img = np.array(img)
+        if img.ndim == 2:
+            img = img[:, :, None]          # (H, W) -> (H, W, 1)
+        return img
 
 
 class Hofmarcher(BaseSet):

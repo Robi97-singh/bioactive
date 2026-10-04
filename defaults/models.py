@@ -32,10 +32,18 @@ class Classifier(BaseModel):
             else:
                 weight_pretrained = None
             self.backbone = cnn_models.__dict__[self.backbone_type](weights=weight_pretrained, **incargs)
-            fc_in_channels = self.backbone.fc.in_features
+            if hasattr(self.backbone, 'fc'):
+                fc_in_channels = self.backbone.fc.in_features
+            elif hasattr(self.backbone, 'classifier'):
+                fc_in_channels = self.backbone.classifier[-1].in_features
+            else:
+                raise NotImplementedError(f"Can't find feature dim for {self.backbone_type}")
         else:
             raise NotImplementedError                
-        self.backbone.fc = Identity()  # removing the fc layer from the backbone (which is manually added below)
+        if hasattr(self.backbone, 'fc'):
+            self.backbone.fc = Identity()
+        else:
+            self.backbone.classifier = Identity()  # EfficientNet
 
         # modify stem and last layer
         self.fc = nn.Linear(fc_in_channels, self.n_classes)
@@ -86,7 +94,13 @@ class Classifier(BaseModel):
             conv1_defs = {attr: getattr(self.backbone.conv1, attr) for attr in conv_attrs}
 
             pretrained_weight = self.backbone.conv1.weight.data
-            pretrained_weight = pretrained_weight.repeat(1, 4, 1, 1)[:, :img_channels]
+            if img_channels == 1:
+                # grayscale (brightfield): average the pretrained RGB weights
+                # into a single input channel, rather than slicing off just
+                # the red channel via repeat+slice.
+                pretrained_weight = pretrained_weight.mean(dim=1, keepdim=True)
+            else:
+                pretrained_weight = pretrained_weight.repeat(1, 4, 1, 1)[:, :img_channels]
 
             self.backbone.conv1 = nn.Conv2d(img_channels, **conv1_defs)
             if pretrained:
@@ -105,6 +119,21 @@ class Classifier(BaseModel):
             if pretrained:
                 self.backbone.Conv2d_1a_3x3.conv.weight.data = pretrained_weight                 
                 
+        elif backbone_type == 'EfficientNet':
+            first_conv = self.backbone.features[0][0]
+            conv_attrs = ['out_channels', 'kernel_size', 'stride',
+                          'padding', 'dilation', 'groups', 'bias', 'padding_mode']
+            conv1_defs = {attr: getattr(first_conv, attr) for attr in conv_attrs}
+
+            pretrained_weight = first_conv.weight.data
+            pretrained_weight = pretrained_weight.repeat(1, 4, 1, 1)[:, :img_channels]
+
+            new_conv = nn.Conv2d(img_channels, **conv1_defs)
+            if pretrained:
+                new_conv.weight.data = pretrained_weight
+            self.backbone.features[0][0] = new_conv
+            print(f"Adapting first channel of EfficientNet to {img_channels} channels")
+
         else:
             raise NotImplementedError("channel modification is not implemented for {}".format(backbone_type))
 
@@ -177,6 +206,76 @@ class DINOv2Classifier(BaseModel):
             x_emb = outputs.last_hidden_state[:, 0, :]
             x_out = self.fc(x_emb)
             
+            if return_embedding:
+                return x_out, x_emb
+            return x_out
+
+
+class DINOv3Classifier(BaseModel):
+    """DINOv3 backbone with patch embedding adapted to img_channels (5 for
+    fluorescence, 1 for brightfield)."""
+
+    def __init__(self, model_params):
+        super().__init__()
+        self.attr_from_dict(model_params)
+
+        from transformers import AutoModel
+        model_id = {
+            'dinov3_small': 'facebook/dinov3-vits16-pretrain-lvd1689m',
+            'dinov3_base':  'facebook/dinov3-vitb16-pretrain-lvd1689m',
+            'dinov3_large': 'facebook/dinov3-vitl16-pretrain-lvd1689m',
+        }[self.backbone_type]
+
+        print(f"Loading {model_id}...")
+        self.backbone = AutoModel.from_pretrained(model_id)
+        hidden_size = self.backbone.config.hidden_size
+
+        self._adapt_patch_embedding()
+
+        self.fc = nn.Linear(hidden_size, self.n_classes)
+
+        if self.freeze_backbone:
+            self.freeze_submodel(self.backbone)
+
+        print(f"  Params: {sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def _adapt_patch_embedding(self):
+        """DINOv3: embeddings.patch_embeddings IS the Conv2d (no .projection wrapper)."""
+        if self.img_channels == 3:
+            return
+
+        conv = self.backbone.embeddings.patch_embeddings
+        old_weight = conv.weight.data                      # [embed_dim, 3, 16, 16]
+
+        if self.img_channels == 1:
+            # grayscale (brightfield): average the 3 pretrained input-channel
+            # weights into one, instead of repeat+slice (which would just
+            # keep the red-channel weights verbatim).
+            new_weight = old_weight.mean(dim=1, keepdim=True)
+        else:
+            new_weight = old_weight.repeat(1, 2, 1, 1)[:, :self.img_channels, :, :]
+
+        new_conv = nn.Conv2d(
+            self.img_channels,
+            conv.out_channels,
+            kernel_size=conv.kernel_size,
+            stride=conv.stride,
+            padding=conv.padding,
+            bias=conv.bias is not None
+        )
+        new_conv.weight.data = new_weight
+        if conv.bias is not None:
+            new_conv.bias.data = conv.bias.data
+
+        self.backbone.embeddings.patch_embeddings = new_conv
+        self.backbone.config.num_channels = self.img_channels
+        print(f"  Adapted patch embedding to {self.img_channels} channels")
+
+    def forward(self, x, return_embedding=False):
+        with autocast(self.use_mixed_precision):
+            outputs = self.backbone(x)
+            x_emb = outputs.last_hidden_state[:, 0, :]     # CLS token
+            x_out = self.fc(x_emb)
             if return_embedding:
                 return x_out, x_emb
             return x_out
@@ -327,12 +426,14 @@ class CellDINOClassifier(BaseModel):
                        "/mnt/ssd8/bioactive/celldino_weights/cell_dino_vits8_pretrain_cp.pth")
 
         print(f"Loading Cell-DINO from {CKPT} ...")
+        native_channels = 5   # Cell-DINO ViT-S/8 CP checkpoint's native input width
         self.backbone = torch.hub.load(
             REPO, "cell_dino_cp_vits8",
             source="local",
             pretrained_path=CKPT,
-            in_channels=self.img_channels,     # 5
+            in_channels=native_channels,
         )
+        self._adapt_patch_embedding(native_channels)
 
         embed_dim = 384   # ViT-S
         self.fc = nn.Linear(embed_dim, self.n_classes)
@@ -351,6 +452,46 @@ class CellDINOClassifier(BaseModel):
               f"frozen={self.freeze_backbone} | "
               f"input_size={self.celldino_input_size} | "
               f"params={sum(p.numel() for p in self.parameters())/1e6:.1f}M")
+
+    def _adapt_patch_embedding(self, native_channels: int):
+        """Cell-DINO's hub loader does strict=True state-dict loading, so the
+        model must be built+loaded at its native channel count first. If the
+        requested img_channels differs (e.g. 1 for brightfield), swap in an
+        averaged/adapted patch_embed.proj conv afterward."""
+        if self.img_channels == native_channels:
+            return
+
+        conv = self.backbone.patch_embed.proj          # nn.Conv2d, confirmed
+        old_weight = conv.weight.data                   # [384, native_channels, 8, 8]
+
+        if self.img_channels == 1:
+            new_weight = old_weight.mean(dim=1, keepdim=True)
+        elif self.img_channels < native_channels:
+            keep = self.img_channels - 1
+            new_weight = torch.cat(
+                [old_weight[:, :keep], old_weight[:, keep:].mean(dim=1, keepdim=True)],
+                dim=1,
+            )
+        else:
+            new_weight = old_weight.repeat(
+                1, (self.img_channels + native_channels - 1) // native_channels, 1, 1
+            )[:, :self.img_channels]
+
+        new_conv = nn.Conv2d(
+            self.img_channels,
+            conv.out_channels,
+            kernel_size=conv.kernel_size,
+            stride=conv.stride,
+            padding=conv.padding,
+            bias=conv.bias is not None,
+        )
+        new_conv.weight.data = new_weight
+        if conv.bias is not None:
+            new_conv.bias.data = conv.bias.data
+
+        self.backbone.patch_embed.proj = new_conv
+        print(f"  Adapted Cell-DINO patch embedding from {native_channels} "
+              f"to {self.img_channels} channel(s)")
 
     def forward(self, x, return_embedding=False):
         with autocast(self.use_mixed_precision):
