@@ -173,7 +173,7 @@ def main():
     ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--patience", type=int, default=6)   # matches ResNet
     # DINO linear-probe convention: SGD + momentum + cosine LR schedule.
-    ap.add_argument("--lr", type=float, default=0.005)   # DINO probe default range 1e-3..5e-3
+    ap.add_argument("--lr", type=float, default=0.02)  # locked frozen-probe recipe (fold-0 sweep on Cell-DINO)   # DINO probe default range 1e-3..5e-3
     ap.add_argument("--momentum", type=float, default=0.9)
     ap.add_argument("--weight_decay", type=float, default=0.0)
     ap.add_argument("--feature", choices=["cls", "cls_avgpool"], default="cls",
