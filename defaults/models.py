@@ -98,7 +98,7 @@ class Classifier(BaseModel):
                 # grayscale (brightfield): average the pretrained RGB weights
                 # into a single input channel, rather than slicing off just
                 # the red channel via repeat+slice.
-                pretrained_weight = pretrained_weight.mean(dim=1, keepdim=True)
+                pretrained_weight = pretrained_weight.sum(dim=1, keepdim=True)  # == gray replicated over RGB
             else:
                 pretrained_weight = pretrained_weight.repeat(1, 4, 1, 1)[:, :img_channels]
 
@@ -251,7 +251,7 @@ class DINOv3Classifier(BaseModel):
             # grayscale (brightfield): average the 3 pretrained input-channel
             # weights into one, instead of repeat+slice (which would just
             # keep the red-channel weights verbatim).
-            new_weight = old_weight.mean(dim=1, keepdim=True)
+            new_weight = old_weight.sum(dim=1, keepdim=True)  # == gray replicated over pretrained channels
         else:
             new_weight = old_weight.repeat(1, 2, 1, 1)[:, :self.img_channels, :, :]
 
@@ -465,7 +465,7 @@ class CellDINOClassifier(BaseModel):
         old_weight = conv.weight.data                   # [384, native_channels, 8, 8]
 
         if self.img_channels == 1:
-            new_weight = old_weight.mean(dim=1, keepdim=True)
+            new_weight = old_weight.sum(dim=1, keepdim=True)  # == gray replicated over pretrained channels
         elif self.img_channels < native_channels:
             keep = self.img_channels - 1
             new_weight = torch.cat(

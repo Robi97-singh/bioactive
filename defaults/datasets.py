@@ -134,10 +134,10 @@ class BioActBrightfield(BioAct):
     path_column  = "Metadata_Path_Brightfield"
 
     def init_stats(self):
-        # PLACEHOLDER -- replace with real values from
-        # 04_compute_brightfield_stats.py once images are downloaded.
-        self.mean = (0.5,)
-        self.std  = (0.25,)
+        # Measured by scripts/brightfield/04_compute_brightfield_stats.py
+        # (5000 random images, seed 0), on the [0, 1] scale after ToTensor.
+        self.mean = (0.4972,)
+        self.std  = (0.1916,)
 
     def get_image_data(self, path: str):
         img = Image.open(path)

@@ -29,6 +29,8 @@ MODEL_MAP = {
     "celldino":   ("celldino",        "bioact_celldino"),
     "bf_dinov3_base": ("dinov3_base",  "bioact_brightfield_dinov3_base"),
     "bf_celldino":    ("celldino",     "bioact_brightfield_celldino"),
+    "f102_dinov3_base": ("dinov3_base", "bioact_fluor102_dinov3_base"),
+    "f102_celldino":    ("celldino",    "bioact_fluor102_celldino"),
     "lora_vit_s": ("lora_vit_small",  "bioact_lora_vit_small"),
     "effnet":     ("efficientnet_b3", "bioact_efficientnet_b3"),
 }

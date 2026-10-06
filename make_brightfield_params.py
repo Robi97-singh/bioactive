@@ -2,8 +2,8 @@
 Generates the three brightfield params JSON files (one per model config in the
 ablation), each cloned from its matching fluorescence template with:
   - dataset_params.dataset       -> "BioActBrightfield"
-  - dataset_params.data_location -> brightfield images root (unused in
-    practice since the manifest stores absolute paths, but kept for clarity)
+  - dataset_params.data_location -> brightfield images root (joined with the
+    manifest's relative Metadata_Path_Brightfield, e.g. PLATE/WELL_SITE.png)
   - dataset_params.dataset_csv_path -> brightfield manifest CSV
   - model_params.backbone_type   -> set to the right value for each config
   - training_params.model_name   -> a distinct name per config

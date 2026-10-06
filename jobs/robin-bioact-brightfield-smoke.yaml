@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: robin-bioact-brightfield-smoke
+  namespace: b-r-singh1
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      runtimeClassName: nvidia
+      securityContext:
+        runAsUser: 1376
+        runAsGroup: 1376
+        fsGroup: 1376
+      containers:
+      - name: smoke
+        image: abrainone/ai-linux:cu12.6.3-latest
+        workingDir: /shared/ssd/home/b-r-singh1/bioactive
+        command: ["bash", "-lc"]
+        args:
+        - |
+          source /shared/ssd/home/b-r-singh1/venv/bin/activate
+          python scripts/brightfield/08_smoke_test_dataset.py
+        env:
+        - { name: WANDB_MODE, value: "disabled" }
+        - { name: PYTHONUNBUFFERED, value: "1" }
+        resources:
+          requests: { cpu: 4, memory: 16Gi }
+          limits:   { cpu: 8, memory: 24Gi }
+        volumeMounts:
+        - { mountPath: /shared/ssd/home/b-r-singh1, name: home }
+        - { mountPath: /shared/hdd/data/bioactive, name: data, readOnly: true }
+      volumes:
+      - name: home
+        hostPath: { path: /shared/ssd/home/b-r-singh1, type: Directory }
+      - name: data
+        hostPath: { path: /shared/hdd/data/bioactive, type: Directory }
