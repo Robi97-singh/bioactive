@@ -394,7 +394,8 @@ class DefaultWrapper:
     def dataset_mapper(self):
         return {   
             "BioAct" : BioAct,    
-            "Hofmarcher" : Hofmarcher,     
+            "Hofmarcher" : Hofmarcher,
+            "BioActBrightfield" : BioActBrightfield,     
             }
     
     @property
