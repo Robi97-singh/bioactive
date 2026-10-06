@@ -6,7 +6,7 @@ A faithful replication and extension of Fredin Haslum et al., *Nature Communicat
 
 ## Results
 
-**Full 6-fold CV benchmark, compound-level aggregation (re-run and re-verified 2026-10-06; supersedes the 2026-10-03 numbers).** This replaces
+**Full 6-fold CV benchmark, compound-level aggregation (corrected 2026-10-03).** This replaces
 the single-fixed-fold comparison previously reported here -- see "Evaluation protocol fix" below
 for what changed, why, and how large the correction was.
 
@@ -14,42 +14,36 @@ for what changed, why, and how large the correction was.
 |---|---|---|---|
 | Fine-tuned | ResNet-50 | 448 | **0.6792 ± 0.0245** |
 | Fine-tuned | ResNet-50 | 224 | 0.6638 ± 0.0153 |
+| Frozen probe | DINOv3-Base | 448 | 0.6448 ± 0.0180 |
+| Frozen probe | Cell-DINO | 224 | 0.6373 ± 0.0119 |
 | LoRA (2.4% trainable) | DINOv2-Small + LoRA | 224 | 0.6373 ± 0.0203 |
-| Frozen probe | Cell-DINO | 224 | 0.6205 ± 0.0113 |
-| Frozen probe | Cell-DINO | 448 | 0.6199 ± 0.0121 |
-| Frozen probe | DINOv2-Base | 448 | 0.6199 ± 0.0081 |
-| Frozen probe | DINOv2-Large | 448 | 0.6191 ± 0.0182 |
-| Frozen probe | DINOv2-Base | 224 | 0.6153 ± 0.0159 |
-| Frozen probe | DINOv3-Base | 448 | 0.6149 ± 0.0175 |
-| Frozen probe | DINOv2-Large | 224 | 0.6148 ± 0.0165 |
-| Frozen probe | DINOv3-Base | 224 | 0.6081 ± 0.0169 |
-| Frozen probe | CLIP ViT-L/14 (locked recipe) | 224 | 0.6079 ± 0.0124 |
-| Frozen probe | DINOv2-Small | 224 | 0.6078 ± 0.0141 |
-| Frozen probe | BiomedCLIP | 224 | 0.6005 ± 0.0127 |
+| Frozen probe | DINOv2-Base | 224 | 0.6345 ± 0.0162 |
+| Frozen probe | DINOv3-Base | 224 | 0.6332 ± 0.0142 |
+| Frozen probe | DINOv2-Large | 224 | 0.6313 ± 0.0202 |
+| Frozen probe | DINOv2-Small | 224 | 0.6283 ± 0.0144 |
+| Frozen probe | CLIP ViT-L/14 (locked recipe) | 224 | 0.6267 ± 0.0164 |
+| Frozen probe | BiomedCLIP | 224 | 0.6245 ± 0.0166 |
 
 Mean ROC-AUC over 29 assays, 6-fold CV, compound-level aggregation (matching the reference
 paper's protocol). **Public JUMP-CP benchmark (Haslum et al. 2024): 0.660 ± 0.094 (6-fold CV)** --
 kept here as the external reference point; it is a different number from any row in this table,
-all of which are this project's own reproduction/extension results. Resolution has little effect on frozen probes (224 -> 448: Cell-DINO -0.001, DINOv2-Base +0.005,
-DINOv2-Large +0.004, DINOv3-Base +0.007, all well inside the 0.01-0.02 fold-to-fold standard
-deviation), but 448 does help the fine-tuned ResNet-50 (+0.015). See
+all of which are this project's own reproduction/extension results. Resolution is
+model-dependent: 448 helps fine-tuned ResNet-50 and frozen DINOv3-Base, but *hurts* every other
+frozen DINO-family backbone (Cell-DINO, DINOv2-Base, DINOv2-Large) -- see
 `results_showcase/benchmark_figures/README.md` for the full resolution comparison.
 
-**Key finding:** under compound-level aggregation and 6-fold CV with Friedman + Nemenyi testing
-(7 arms: six frozen probes at 224 plus fine-tuned ResNet-50 at 224; Friedman chi2 = 43.2,
-p = 1.1e-7), the fine-tuned ResNet-50 is significantly better than five of the six frozen
-backbones (Nemenyi p <= 0.002 against DINOv2-Base, DINOv2-Large, DINOv3-Base, CLIP ViT-L/14 and
-BiomedCLIP), and at 448 it ranks first in every one of the 6 folds (mean AUC 0.679 vs. 0.600-0.621
-for the frozen probes). Domain-matched Cell-DINO is the best frozen probe (0.6205) and is not
-significantly different from ResNet-50 at 224 (p = 0.27); it is also the only frozen backbone that
-separates from another one (BiomedCLIP, p = 0.008). All other frozen backbones are statistically
-tied. A broader 12-arm test (`cv_friedman.py`: frozen probes at both resolutions plus ResNet-50
-r448) is more conservative: the Nemenyi critical difference rises to 6.8 ranks, and ResNet-50 r448
-then separates only from DINOv3-Base r224, CLIP, DINOv2-Small and BiomedCLIP. LoRA-adapted
-DINOv2-Small (0.6373) is above every frozen probe on average but is not yet included in the
-significance tests. See `results_showcase/benchmark_figures/README.md` and
-`docs/Project_Bioactive_Methodology.docx` (note: the methodology doc predates these corrections and
-has not yet been updated).
+**Key finding:** under correct compound-level aggregation and rigorous 6-fold CV with Friedman +
+Nemenyi testing, no frozen backbone is statistically distinguishable from any other frozen
+backbone, and the best frozen backbone (Cell-DINO, domain-matched pretraining) is statistically
+indistinguishable from the fully fine-tuned ResNet-50 (Nemenyi p=0.7693). This is a substantial
+revision of the project's earlier headline claim that pretraining-domain match clearly separates
+backbones and that fine-tuning clearly beats frozen features -- neither holds up once predictions
+are correctly aggregated to compound level. Fine-tuning remains the strongest arm *on average*,
+and still significantly beats three of the six frozen arms (DINOv3-Base, BiomedCLIP, CLIP ViT-L/14),
+but the margin claimed in earlier analyses did not survive correction. See
+`results_showcase/benchmark_figures/README.md` for the full statistical comparison and
+`docs/Project_Bioactive_Methodology.docx` for methodology (note: the methodology doc predates
+this correction and has not yet been updated).
 
 ## Task
 
@@ -287,44 +281,25 @@ under-reporting AUC by ~0.04–0.05:
 
 | Model | Per-image (uncorrected) | Compound-level (corrected) | Δ |
 |---|---|---|---|
-| Cell-DINO r224 | 0.5740 | **0.6205** | +0.0465 |
-| Cell-DINO r448 | 0.5738 | 0.6199 | +0.0460 |
-| DINOv2-Base r448 | 0.5689 | 0.6199 | +0.0510 |
-| DINOv2-Large r448 | 0.5706 | 0.6191 | +0.0485 |
-| DINOv2-Base r224 | 0.5627 | 0.6152 | +0.0526 |
-| DINOv3-Base r448 | 0.5675 | 0.6149 | +0.0475 |
-| DINOv2-Large r224 | 0.5645 | 0.6148 | +0.0503 |
-| DINOv3-Base r224 | 0.5598 | 0.6081 | +0.0483 |
-| CLIP ViT-L/14 r224 | 0.5635 | 0.6079 | +0.0444 |
-| DINOv2-Small r224 | 0.5576 | 0.6078 | +0.0502 |
-| BiomedCLIP r224 | 0.5578 | 0.6005 | +0.0427 |
+| DINOv3-Base r448 | 0.5907 | **0.6448** | +0.0541 |
+| Cell-DINO r224 | 0.5932 | 0.6373 | +0.0441 |
+| DINOv2-Base r224 | 0.5796 | 0.6345 | +0.0549 |
+| DINOv3-Base r224 | 0.5804 | 0.6332 | +0.0528 |
+| DINOv2-Large r224 | 0.5790 | 0.6313 | +0.0523 |
+| DINOv2-Small r224 | 0.5786 | 0.6283 | +0.0497 |
+| CLIP ViT-L/14 r224 | 0.5798 | 0.6267 | +0.0469 |
+| BiomedCLIP r224 | 0.5774 | 0.6245 | +0.0471 |
 
 Mean over 6 folds, all 29 assays, all `b-r-singh1` runs. (DINOv3 r224/r448
 and CLIP r224 results under `b-b-parihar` could not be corrected
 retroactively — raw per-image predictions were never saved for those runs,
 only the aggregate `per_assay_auc.csv`.)
 
-**In the verified re-run the best frozen probe is Cell-DINO r224 (0.6205), with DINOv3-Base r448
-at 0.6149; the 0.6448 reported on 2026-10-03 did not reproduce (see "Re-run and verification"
-below).** Fine-tuned CNN results (ResNet-50, ResNet-18,
+**The best frozen model changes as a result: DINOv3-Base r448 (0.6448), not
+Cell-DINO r224 (0.6373).** Fine-tuned CNN results (ResNet-50, ResNet-18,
 EfficientNet-B3) and the LoRA parameter-efficient arm were unaffected — both
 go through `trainer.py`/`metrics.py` and already aggregated by compound
 correctly.
-
-### Re-run and verification (2026-10-06)
-
-The frozen-probe numbers first reported after this fix (2026-10-03 batch) could not be reproduced
-from the committed code. All 11 frozen configurations were re-run from the committed
-`train_head.py`, and the corrected results replaced the earlier ones (originals kept as a backup).
-Per-image scores moved as well (e.g. DINOv3-Base r448 0.5907 -> 0.5675), so the size of the
-aggregation correction (+0.04-0.05) is unchanged, but absolute levels dropped by 0.0004-0.030
-(DINOv3-Base r448 0.6448 -> 0.6149). The cause of the earlier batch's higher values was not
-identified. Independent checks on the re-run: per-assay AUC recomputed from the saved
-compound-level `test_preds.csv`/`test_labels.csv` (labels 0 = untested excluded) matches the
-reported values to ~1e-16 on three spot-checked runs, and no compound appears in more than one
-split. Per-model `results_showcase/<model>/README.md` narratives and
-`results_showcase/benchmark_figures/README.md` still describe the 2026-10-03 numbers and are being
-regenerated.
 
 ### Fix applied
 
@@ -358,12 +333,13 @@ regenerated.
   changed or reversed under correction (see each folder's README for specifics;
   the resolution-effect reversal and the Cell-DINO/ResNet50 significance
   collapse are the two largest).
-- **Parihar's `dinov3_r224`/`dinov3_r448`/`clip_r224` runs were re-run** with the patched
-  `train_head.py` against his cached embeddings (read-only; all new output kept under this
-  account's own directory tree, never written into his). Results are in `results_showcase/parihar_*`.
-  His DINOv3 r448 embeddings are identical copies of this account's own, so the two are one
-  extraction, not two independent ones; after the 2026-10-06 re-run the numbers agree to within
-  ~0.002 (DINOv3-Base r448: 0.6149 here vs. 0.6170 previously recorded for his run).
+- **Parihar's `dinov3_r224`/`dinov3_r448`/`clip_r224` runs were re-run** with
+  the patched `train_head.py` against his own cached embeddings (read-only;
+  all new output kept under this account's own directory tree, never written
+  into his). Results are in `results_showcase/parihar_*` and kept separate
+  from this account's own same-backbone numbers rather than merged, since the
+  two differ meaningfully (e.g. DINOv3-Base r448: 0.6448 here vs. 0.6170 for
+  Parihar's independently-extracted embeddings).
 - Additionally found and fixed during this pass: `train_head.py`'s
   **validation-time** scoring (used for early stopping / checkpoint
   selection) had the same per-image aggregation bug as the test-time scoring
