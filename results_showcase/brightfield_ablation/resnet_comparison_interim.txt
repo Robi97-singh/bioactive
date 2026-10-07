@@ -1,0 +1,21 @@
+== BF ResNet r448 minus BF DINOv3 r448 frozen (folds [0, 1, 2, 3, 4, 5])
+fold
+0    0.0345
+1    0.0588
+2    0.0016
+3    0.0429
+4    0.0117
+5    0.0620
+mean diff +0.0353  SD 0.0245  paired t p=0.0170  BF ResNet r448 better in 6/6
+
+== BF ResNet r448 minus BF Cell-DINO r224 frozen (folds [0, 1, 2, 3, 4, 5])
+fold
+0    0.0922
+1    0.0927
+2    0.0758
+3    0.1322
+4    0.1344
+5    0.1076
+mean diff +0.1058  SD 0.0235  paired t p=0.0001  BF ResNet r448 better in 6/6
+
+== BF ResNet r448 vs FL ResNet r448: missing results
