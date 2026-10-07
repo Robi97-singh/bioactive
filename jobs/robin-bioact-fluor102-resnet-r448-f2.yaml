@@ -8,6 +8,12 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - { key: kubernetes.io/hostname, operator: NotIn, values: ["w4-mi"] }
       runtimeClassName: nvidia
       securityContext:
         runAsUser: 1376
@@ -21,7 +27,7 @@ spec:
         args:
         - >-
           source /shared/ssd/home/b-r-singh1/venv/bin/activate &&
-          python classification.py --params_path params/params_fluor102_resnet_cluster.json
+          python classification.py --params_path params/params_fluor102_resnet_cluster_w16.json
           --model resnet --res 448 --fold 2
           --batch_size 64 --model_name bioact_fluor102_resnet_r448 &&
           python make_plots_v3.py bioact_fluor102_resnet_r448_fold2
@@ -31,8 +37,8 @@ spec:
         - { name: HF_HOME,         value: "/shared/ssd/home/b-r-singh1/hf_cache" }
         - { name: PYTHONUNBUFFERED, value: "1" }
         resources:
-          requests: { nvidia.com/gpu: 1, cpu: 8, memory: 32Gi }
-          limits:   { nvidia.com/gpu: 1, cpu: 16, memory: 40Gi }
+          requests: { nvidia.com/gpu: 1, cpu: 12, memory: 32Gi }
+          limits:   { nvidia.com/gpu: 1, cpu: 20, memory: 40Gi }
         volumeMounts:
         - { mountPath: /shared/ssd/home/b-r-singh1, name: home }
         - { mountPath: /shared/hdd/data/bioactive, name: data, readOnly: true }
