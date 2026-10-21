@@ -53,6 +53,17 @@ whereas ResNet-50 and LoRA use individually tuned recipes. See `results_showcase
 and `docs/Project_Bioactive_Methodology.docx` (note: the methodology doc predates these
 corrections and has not yet been updated).
 
+## Repository guide (for reviewers)
+
+| What | Where |
+|---|---|
+| Check the headline numbers against the committed result files | verify/ (run `python3 verify/verify_claims.py`; see VERIFY.md) |
+| Errors found and corrected in our own work | verify/CORRECTIONS.md |
+| Explainability heat maps, tables and regeneration notes | results_showcase/explainability/ |
+| Brightfield vs fluorescence results and paired tests | results_showcase/brightfield_vs_fluorescence/ |
+| Cluster job specs and parameter files behind each run | jobs/, params/ |
+| Early result logs and one-off patch scripts (not used by the pipeline) | legacy/ |
+
 ## Brightfield vs fluorescence (ResNet-50, 448 px, same 102 plates)
 
 To test whether the fluorescence channels carry information that brightfield lacks, a brightfield ResNet-50 and a five-channel fluorescence ResNet-50 were trained at 448 px on the same 102 plates, one job per fold, over all six folds (same split and compound-level aggregation as above).
