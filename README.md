@@ -103,7 +103,7 @@ Cell Painting five-channel fluorescence microscopy images to compound bioactivit
 - `make_plots_v2.py`, `make_comparison_figures.py` — figure generation
 - `apply_early_stopping.py` — trainer early-stopping patch utility
 - `results/` and comparison figures — test result logs, per-assay AUC CSVs
-- `docs/` — methodology and explainability documents (PDF exports)
+- `docs/` — methodology document (PDF export of the project report)
 
 ## Not included (live on the compute server, excluded via .gitignore)
 
