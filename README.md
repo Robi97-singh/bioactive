@@ -50,7 +50,7 @@ BiomedCLIP. LoRA-adapted DINOv2-Small (0.6373) is +0.011 above its frozen backbo
 the best frozen 448 probes; it is not part of the significance tests. Caveat: the frozen recipe
 (lr 0.02) was selected in a fold-0 sweep on Cell-DINO and applied unchanged to all frozen backbones,
 whereas ResNet-50 and LoRA use individually tuned recipes. See `results_showcase/benchmark_figures/README.md`
-and `docs/Project_Bioactive_Methodology.pdf` (updated 2026-10-21 with the corrected
+and `docs/Project_Bioactive_Methodology.md` (updated 2026-10-21 with the corrected
 benchmark, the brightfield vs fluorescence comparison and the explainability results).
 
 ## Repository guide (for reviewers)
@@ -105,7 +105,7 @@ Cell Painting five-channel fluorescence microscopy images to compound bioactivit
 - `make_plots_v2.py`, `make_comparison_figures.py` — figure generation
 - `apply_early_stopping.py` — trainer early-stopping patch utility
 - `results/` and comparison figures — test result logs, per-assay AUC CSVs
-- `docs/` — methodology document (PDF export of the project report)
+- `docs/` — methodology and results document (Markdown copy of the project report)
 
 ## Not included (live on the compute server, excluded via .gitignore)
 
@@ -276,7 +276,7 @@ pass; the current main benchmark is the one above.*
 - **Resolution** — ResNet-50 and DINOv2 at 448; CLIP-family at native 224 (positional embeddings do not transfer to 448). Field of view held identical across all models.
 - **Single seed** — run-to-run variance ≈ ±0.02 ROC-AUC; only differences above this scale are interpreted. Model ordering is robust to it.
 
-Full reasoning and limitations are in `docs/Project_Bioactive_Methodology.pdf`.
+Full reasoning and limitations are in `docs/Project_Bioactive_Methodology.md`.
 
 ## Reference
 
