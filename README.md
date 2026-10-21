@@ -62,7 +62,7 @@ To test whether the fluorescence channels carry information that brightfield lac
 | Fluorescence (5 channels) | 0.710 ± 0.048 |
 | Brightfield (1 channel) | 0.694 |
 
-Brightfield minus fluorescence is -0.016 AUC (paired t-test p = 0.19; brightfield better on 2 of 6 folds; rough 95% range -0.042 to +0.011). There is no significant difference, but fluorescence is ahead on the last three folds (by 0.02 to 0.06), so a small fluorescence advantage is not ruled out. These numbers use the 102-plate subset and are not comparable with the full-dataset ResNet-50 row above. Aggregation: `python3 aggregate_cv.py <model> 448 --outdir results/cv/<name>`; comparison: `compare_resnet.py`.
+Brightfield minus fluorescence is -0.016 AUC (paired t-test p = 0.19; brightfield better on 2 of 6 folds; rough 95% range -0.042 to +0.011). There is no significant difference, but fluorescence is ahead on four of six folds (folds 2 to 5, by 0.013 to 0.056), so a small fluorescence advantage is not ruled out. These numbers use the 102-plate subset and are not comparable with the full-dataset ResNet-50 row above. Aggregation: `python3 aggregate_cv.py <model> 448 --outdir results/cv/<name>`; comparison: `compare_resnet.py`.
 
 ## Explainability of the frozen models (2026-10)
 
