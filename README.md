@@ -64,6 +64,8 @@ benchmark, the brightfield vs fluorescence comparison and the explainability res
 | Cluster job specs and parameter files behind each run | jobs/, params/ |
 | Early result logs and one-off patch scripts (not used by the pipeline) | legacy/ |
 
+EfficientNet-B3 status: the configuration (`params/params_efficientnet_b3*.json`, model registration in `defaults/models.py`) is by Bhartendu Parihar, who also ran the 448 px and 224 px arms (the 224 px arm uses resize 540 then crop 224, a field of view of 0.415). Their results are not part of the verified results in this release. They are being re-evaluated from the saved checkpoints with `jobs/robin-bioact-effnet-eval.yaml` and `efficientnet_cv.py`, and will be added with the same verification as the other models.
+
 Clone tip: the full git history is about 500 MB because an early commit added sample images and metadata tables under src/data. To get only the current state, use `git clone --depth 1 https://github.com/Robi97-singh/bioactive.git` (about 80 MB).
 
 ## Brightfield vs fluorescence (ResNet-50, 448 px, same 102 plates)
