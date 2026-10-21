@@ -21,5 +21,7 @@ Run `python3 verify/verify_claims.py` from the repository root. It needs only Py
 
 ## Notes for a reviewer
 
+* Label coding in test_labels.csv: 1 = positive, -1 = negative, 0 = not measured (see mean_roc_auc in utils/metrics.py). Per-compound scores are the mean of the sigmoid probabilities over a compound's images; ROC-AUC is computed per assay on measured labels and averaged over assays that have both classes. verify_eval.py recomputes this for one model and fold and compares it with the reported per-assay values.
+
 * The intervals in bootstrap_ci.csv and enrich_r65.csv differ in the second decimal for some methods (for example Cell-DINO grad x act, 2.26 vs 2.29). Both are bootstrap estimates of the same quantity with different random draws. The README and documents quote enrich_r65.csv.
 * Known errors found and corrected during the project are listed in CORRECTIONS.md.

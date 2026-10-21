@@ -2,8 +2,8 @@ import sys
 import pandas as pd
 fold = int(sys.argv[1]); model = sys.argv[2]
 d = f"/shared/ssd/logs/b-r-singh1/results/bioact_{model}_fold{fold}/plots"
-P = pd.read_csv(f"{d}/test_preds.csv", index_col=0)
-L = pd.read_csv(f"{d}/test_labels.csv", index_col=0)
+P = pd.read_csv(f"{d[:-6]}/test_preds.csv", index_col=0)
+L = pd.read_csv(f"{d[:-6]}/test_labels.csv", index_col=0)
 R = pd.read_csv(f"{d}/per_assay_auc.csv", index_col=0).iloc[:, 0]
 assert list(P.index) == list(L.index), "compound order differs"
 def auc(s, y):
@@ -11,8 +11,8 @@ def auc(s, y):
     return (r[y == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0)
 mine = {}
 for a in P.columns:
-    m = L[a] != -1
-    y, s = L.loc[m, a], P.loc[m, a]
+    m = L[a] != 0
+    y, s = ((L.loc[m, a] + L.loc[m, a] ** 2) / 2).round().astype(int), P.loc[m, a]
     if (y == 1).sum() > 0 and (y == 0).sum() > 0:
         mine[a] = auc(s, y)
 mine = pd.Series(mine)

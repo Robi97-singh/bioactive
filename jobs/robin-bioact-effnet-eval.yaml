@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: robin-bioact-effnet-eval
+  namespace: b-r-singh1
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      runtimeClassName: nvidia
+      securityContext:
+        runAsUser: 1376
+        runAsGroup: 1376
+        fsGroup: 1376
+      containers:
+      - name: eval
+        image: abrainone/ai-linux:cu12.6.3-latest
+        workingDir: /shared/ssd/home/b-r-singh1/bioactive
+        command: ["bash", "-lc"]
+        args:
+        - >-
+          source /shared/ssd/home/b-r-singh1/venv/bin/activate &&
+          E=/shared/ssd/logs/b-r-singh1/effnet_eval &&
+          python dump_predictions.py --model effnet --res 448 --params $E/params_r448.json --save_dir $E/out_r448 --batch_size 64 &&
+          python dump_predictions.py --model effnet --res 224 --params $E/params_r224.json --save_dir $E/out_r224 --batch_size 64
+        env:
+        - { name: WANDB_MODE,       value: "disabled" }
+        - { name: HF_HOME,          value: "/shared/ssd/home/b-r-singh1/.cache/huggingface" }
+        - { name: PYTHONUNBUFFERED, value: "1" }
+        resources:
+          requests: { nvidia.com/gpu: 1, cpu: 8, memory: 32Gi }
+          limits:   { nvidia.com/gpu: 1, cpu: 16, memory: 40Gi }
+        volumeMounts:
+        - { mountPath: /shared/ssd/home/b-r-singh1, name: home }
+        - { mountPath: /shared/hdd/data/bioactive, name: data, readOnly: true }
+        - { mountPath: /shared/ssd/logs/b-r-singh1, name: logs }
+        - { mountPath: /shared/ssd/logs/b-b-parihar, name: parihar, readOnly: true }
+        - { mountPath: /dev/shm, name: dshm }
+      volumes:
+      - name: home
+        hostPath: { path: /shared/ssd/home/b-r-singh1, type: Directory }
+      - name: data
+        hostPath: { path: /shared/hdd/data/bioactive, type: Directory }
+      - name: logs
+        hostPath: { path: /shared/ssd/logs/b-r-singh1, type: Directory }
+      - name: parihar
+        hostPath: { path: /shared/ssd/logs/b-b-parihar, type: Directory }
+      - name: dshm
+        emptyDir: { medium: Memory, sizeLimit: 16Gi }
