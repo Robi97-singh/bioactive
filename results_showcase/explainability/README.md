@@ -21,11 +21,11 @@ Metrics: deletion and insertion AUC (20 steps), each standardized (z) against 10
 | Cell-DINO | grad x act | -1.53 (-2.33 to -0.77) | 0.74 (0.15 to 1.37) | 2.29 (1.62 to 3.14) |
 | Cell-DINO | occlusion | -5.03 (-6.11 to -4.08) | 2.21 (1.46 to 2.99) | 1.07 (0.98 to 1.16) |
 | Cell-DINO | centre control | -0.51 (-1.57 to 0.60) | 0.09 (-0.59 to 0.78) | not applicable |
-| ResNet-50 | Grad-CAM (reference) | not evaluated | not evaluated | 1.07 (0.90 to 1.28) |
+| ResNet-50 | Grad-CAM (reference) | not evaluated | not evaluated | 1.07 (0.90 to 1.28), 58 of 65 targets |
 
-Paired difference in enrichment against ResNet Grad-CAM (mean, 95% CI): DINOv3 ViT-CX +0.27 (-0.07 to +0.59); Cell-DINO ViT-CX -0.08 (-0.27 to +0.11); Cell-DINO occlusion 0.00 (-0.19 to +0.17); DINOv3 grad x act +2.14 (+1.59 to +2.74); Cell-DINO grad x act +1.16 (+0.50 to +1.94).
+Paired difference in enrichment against ResNet Grad-CAM, on the 58 targets where the ResNet map is not empty (mean, 95% CI): DINOv3 ViT-CX +0.27 (-0.07 to +0.59); Cell-DINO ViT-CX -0.08 (-0.27 to +0.11); Cell-DINO occlusion 0.00 (-0.19 to +0.17); DINOv3 grad x act +2.14 (+1.59 to +2.74); Cell-DINO grad x act +1.16 (+0.50 to +1.94).
 
-Reading: only occlusion clearly beats the control maps on both deletion and insertion (the metric favours perturbation methods by construction). ViT-CX is not clearly better than a centre blob on deletion. Grad x act has the highest enrichment, but this is partly mechanical because the map is weighted by activation. ResNet Grad-CAM is at chance on enrichment; its deletion and insertion scores were not evaluated.
+Reading: only occlusion clearly beats the control maps on both deletion and insertion (the metric favours perturbation methods by construction). ViT-CX is not clearly better than a centre blob on deletion. Grad x act has the highest enrichment, but this is partly mechanical because the map is weighted by activation. ResNet Grad-CAM is at chance on enrichment (defined for 58 of 65 targets; in 7 the Grad-CAM map was empty); its deletion and insertion scores were not evaluated.
 
 ## How to regenerate
 
