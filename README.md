@@ -64,6 +64,8 @@ benchmark, the brightfield vs fluorescence comparison and the explainability res
 | Cluster job specs and parameter files behind each run | jobs/, params/ |
 | Early result logs and one-off patch scripts (not used by the pipeline) | legacy/ |
 
+Clone tip: the full git history is about 500 MB because an early commit added sample images and metadata tables under src/data. To get only the current state, use `git clone --depth 1 https://github.com/Robi97-singh/bioactive.git` (about 20 MB).
+
 ## Brightfield vs fluorescence (ResNet-50, 448 px, same 102 plates)
 
 To test whether the fluorescence channels carry information that brightfield lacks, a brightfield ResNet-50 and a five-channel fluorescence ResNet-50 were trained at 448 px on the same 102 plates, one job per fold, over all six folds (same split and compound-level aggregation as above).
