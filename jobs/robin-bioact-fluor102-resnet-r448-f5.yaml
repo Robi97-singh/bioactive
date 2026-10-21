@@ -8,6 +8,12 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - { key: kubernetes.io/hostname, operator: NotIn, values: ["w4-mi"] }
       runtimeClassName: nvidia
       securityContext:
         runAsUser: 1376

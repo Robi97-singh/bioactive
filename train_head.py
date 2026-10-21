@@ -182,6 +182,8 @@ def main():
                          "CLS concatenated with mean patch token (matches "
                          "Cell-DINO's own paper protocol).")
     ap.add_argument("--batch_size", type=int, default=4096)  # embeddings are tiny
+    ap.add_argument("--save_head", type=int, default=0,
+                    help="1 = also save head weights + train mean/std to checkpoints/<fold>_head.pt (for XAI)")
     ap.add_argument("--val_every", type=int, default=1)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--standardize", type=int, default=1,
@@ -363,6 +365,17 @@ def main():
         os.path.join(out_plots, "test_labels.csv"), index=False)
     print(f"  wrote compound-level test_preds.csv / test_labels.csv "
           f"({len(compound_ids)} compounds, {n_classes} assays)", flush=True)
+
+    if a.save_head:
+        _hd = os.path.join(a.save_dir, "checkpoints")
+        os.makedirs(_hd, exist_ok=True)
+        torch.save({"state_dict": {k: v.detach().cpu() for k, v in head.state_dict().items()},
+                    "mu": (mu.cpu() if a.standardize else None),
+                    "sd": (sd.cpu() if a.standardize else None),
+                    "standardize": bool(a.standardize), "stem": stem, "fold_name": fold_name,
+                    "D": D, "n_classes": n_classes, "test_mean_roc_auc": float(test_mean)},
+                   os.path.join(_hd, f"{fold_name}_head.pt"))
+        print(f"  saved head -> {_hd}/{fold_name}_head.pt", flush=True)
 
     # Also drop a small metrics json next to the checkpoints for convenience.
     ckpt_dir = os.path.join(a.save_dir, "checkpoints")
