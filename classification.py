@@ -33,6 +33,7 @@ MODEL_MAP = {
     "f102_celldino":    ("celldino",    "bioact_fluor102_celldino"),
     "lora_vit_s": ("lora_vit_small",  "bioact_lora_vit_small"),
     "effnet":     ("efficientnet_b3", "bioact_efficientnet_b3"),
+    "resnet18":   ("resnet18",        "bioact_resnet18"),
 }
 
 def _apply_resolution(params, res):
