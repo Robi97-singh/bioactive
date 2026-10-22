@@ -40,8 +40,11 @@ fold-to-fold standard deviation) and a similar-sized one on fine-tuned ResNet-50
 `results_showcase/benchmark_figures/README.md` for the full resolution comparison.
 
 **Key finding:** under compound-level aggregation, one locked linear-probe recipe for every frozen
-backbone, and 6-fold CV with Friedman + Nemenyi testing, fine-tuned ResNet-50 is the strongest arm.
-At 448 it ranks first in all 6 folds (mean 0.679 vs. 0.621-0.641 for the frozen probes). In the
+backbone, and 6-fold CV with Friedman + Nemenyi testing, fine-tuned ResNet-50 is the strongest of the
+original arms (ResNet-50 and the frozen probes). At 448 it ranks first in all 6 folds among these arms
+(mean 0.679 vs. 0.621-0.641 for the frozen probes). ResNet-18 (0.676) and EfficientNet-B3 (0.669) at 448 px,
+added later (see the paragraph on EfficientNet-B3 and ResNet-18 below), are within one fold SD of ResNet-50;
+they were not part of the tests below and no test was run between them. In the
 7-arm 224 comparison (six frozen probes + ResNet-50 r224; Friedman chi2 = 33.8, p = 7e-6) it is
 significantly better than DINOv2-Base (p = 0.004), DINOv3-Base (p = 0.0009), CLIP ViT-L/14
 (p = 0.002) and BiomedCLIP (p < 0.001), but not significantly different from Cell-DINO (p = 0.80)
@@ -280,7 +283,7 @@ pass; the current main benchmark is the one above.*
 - **Single fixed fold** (folds 0–3 train / 4 val / 5 test) — identical across all models, so model-to-model comparison is internally valid. Comparison to the paper's 6-fold CV mean is indicative.
 - **Per-architecture hyperparameters** — ResNet-50: SGD, lr 1e-3, batch 64. All three ViTs: AdamW, lr 1e-4, batch 16 (matched). ReduceLROnPlateau scheduling for all.
 - **Resolution** — ResNet-50 and DINOv2 at 448; CLIP-family at native 224 (positional embeddings do not transfer to 448). Field of view held identical across all models.
-- **Single seed** — run-to-run variance ≈ ±0.02 ROC-AUC; only differences above this scale are interpreted. Model ordering is robust to it.
+- **Single seed** — run-to-run variance ≈ ±0.02 ROC-AUC; only differences above this scale are interpreted. Model ordering between the 448 px fine-tuned CNNs (0.669 to 0.679) and the frozen probes (0.621 to 0.641) is robust to it; the ordering among the three fine-tuned CNNs (differences of 0.003 to 0.010 at 448 px) is not.
 
 Full reasoning and limitations are in `docs/Project_Bioactive_Methodology.md`.
 
