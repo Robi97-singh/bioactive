@@ -79,6 +79,8 @@ SPECTRUM = [
     ("dino_small_r224",  "DINOv2-Small\n(frozen, LoRA base)","frozen"),
     ("lora_vit_s_r224",  "DINOv2+LoRA\n(2.4% params)",       "lora"),
     ("resnet_r224",      "ResNet50\n(fine-tuned)",           "finetuned"),
+    ("resnet18_r224",   "ResNet-18\n(fine-tuned)",         "finetuned"),
+    ("effnet_r224",     "EfficientNet-B3\n(fine-tuned)",   "finetuned"),
 ]
 GROUP_COLOR = {"frozen": "#5BA3D0", "lora": "#7B5EA7", "finetuned": "#C0603A"}
 
@@ -95,7 +97,7 @@ for key, label, grp in SPECTRUM:
     groups.append(grp)
 
 x = np.arange(len(labels))
-fig, ax = plt.subplots(figsize=(9, 5.5))
+fig, ax = plt.subplots(figsize=(11.5, 5.5))
 bars = ax.bar(x, means, color=colors, alpha=0.85, width=0.6,
               yerr=spreads, capsize=4, error_kw=dict(alpha=0.5))
 # value labels
@@ -118,7 +120,7 @@ lora_m = per_assay_means("lora_vit_s_r224").mean()
 ft = per_assay_means("resnet_r224").mean()
 recovered = 100 * (lora_m - frozen_small) / (ft - frozen_small)
 ax.text(0.5, 0.02,
-        f"LoRA recovers ~{recovered:.0f}% of the frozen->fine-tuned gap "
+        f"LoRA recovers ~{recovered:.0f}% of the frozen->fine-tuned (ResNet50) gap "
         f"with 2.4% of parameters trainable\n(baseline: frozen DINOv2-Small, same backbone as LoRA; "
         f"LoRA: {n_lora_folds}-fold CV; frozen/fine-tuned: 6-fold CV)",
         transform=ax.transAxes, ha="center", fontsize=8.5, style="italic",

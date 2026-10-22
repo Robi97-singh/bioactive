@@ -10,7 +10,7 @@ per-sample test predictions (no retraining, no re-inference):
   fig_H_pareto_efficiency.png  -- Test ROC-AUC vs. % trainable parameters
 
 For each arm, all 6 folds' test_preds.csv / test_labels.csv are pooled
-(masked entries, label == -1, excluded) into one flat set of
+(unmeasured entries, label == 0, excluded; 1 = positive, -1 = negative) into one flat set of
 (y_true, y_score) pairs, then a single micro-averaged curve is computed
 per arm. This matches the same "pool across folds and assays" approach
 implicit in the project's existing mean_roc_auc metric.
@@ -46,11 +46,29 @@ ARMS = [
     ("bioact_clip_r224",        "CLIP-L (locked)",       "#4A90C2", "plots"),
     ("bioact_lora_vit_s_r224",  "DINOv2+LoRA",           "#7B5EA7", "direct"),
     ("bioact_resnet_r224",      "ResNet50 (fine-tuned)", "#C0603A", "direct"),
+    ("r18_eval/out_r224",      "ResNet-18 (fine-tuned)", "#E0A070", "oof"),
+    ("effnet_eval/out_r224",   "EfficientNet-B3 (fine-tuned)", "#8C3F1F", "oof"),
 ]
 
 
+def load_oof(path):
+    """Per-image oof file -> compound-level (y_true, y_score); label 0 = not measured."""
+    if not os.path.exists(path):
+        return None, None
+    d = pd.read_csv(path)
+    pc = [c for c in d.columns if c.startswith("pred_")]
+    lc = ["label_" + c[5:] for c in pc]
+    g = d.groupby("compound_id")[pc + lc].mean()
+    P, Lb = g[pc].values, g[lc].values
+    print("  oof score range %.3f to %.3f" % (P.min(), P.max()))
+    m = Lb != 0
+    return (Lb[m] == 1).astype(int), P[m]
+
+
 def load_pooled(stem, path_style):
-    """Load and pool (y_true, y_score) across all 6 folds, masking label==-1."""
+    """Load and pool (y_true, y_score) across all 6 folds, masking label==0 (not measured)."""
+    if path_style == "oof":
+        return load_oof(os.path.join(os.path.dirname(RESULTS), stem, "oof_predictions.csv"))
     all_y, all_s = [], []
     for f in FOLDS:
         if path_style == "plots":
@@ -67,8 +85,8 @@ def load_pooled(stem, path_style):
         assay_cols = [c for c in preds_df.columns if c.startswith("assay_")]
         preds = preds_df[assay_cols].values.astype(float)
         labels = labels_df[assay_cols].values.astype(float)
-        mask = labels != -1.0
-        all_y.append(labels[mask])
+        mask = labels != 0.0
+        all_y.append((labels[mask] == 1).astype(int))
         all_s.append(preds[mask])
     if not all_y:
         return None, None
@@ -153,6 +171,8 @@ PARETO = [
     ("CLIP-L (locked)",       0.6257, 100 * head_params(768)  / 304_000_000, "frozen",   (-15, -35)),
     ("DINOv2+LoRA",           0.6373, 100 * 0.54 / 22.4, "lora",                          (10, 4)),
     ("ResNet50 (fine-tuned)", 0.6638, 100.0, "finetuned",                                 (-155, 4)),
+    ("ResNet-18 (fine-tuned)", 0.6611, 100.0, "finetuned", (-170, -24)),
+    ("EfficientNet-B3 (fine-tuned)", 0.6622, 100.0, "finetuned", (-215, 30)),
 ]
 GROUP_COLOR = {"frozen": "#5BA3D0", "lora": "#7B5EA7", "finetuned": "#C0603A"}
 

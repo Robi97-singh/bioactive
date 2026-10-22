@@ -145,7 +145,7 @@ except Exception as e:
 order = paired.mean().sort_values(ascending=False).index.tolist()
 data_ord = [paired[c].values for c in order]
 
-fig, ax = plt.subplots(figsize=(8, 5.5))
+fig, ax = plt.subplots(figsize=(12.5, 5.5))
 bp = ax.boxplot(data_ord, labels=order, patch_artist=True, widths=0.6,
                 medianprops=dict(color="black", linewidth=1.5))
 for patch, label in zip(bp["boxes"], order):
@@ -179,7 +179,7 @@ if nemenyi is not None:
     print(nemenyi.round(4).to_string())
 
     nem_ord = nemenyi.loc[order, order]
-    fig, ax = plt.subplots(figsize=(7, 6))
+    fig, ax = plt.subplots(figsize=(8.5, 7.5))
     im = ax.imshow(nem_ord.values, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(order))); ax.set_xticklabels(order, rotation=45, ha="right", fontsize=9)
     ax.set_yticks(range(len(order))); ax.set_yticklabels(order, fontsize=9)
