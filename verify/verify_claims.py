@@ -69,6 +69,38 @@ if os.path.exists(pr):
     chk("enrichment ResNet-50 Grad-CAM CI high", float(bm[9750]), 1.28, 0.03)
 else:
     chk("ResNet-50 Grad-CAM file missing", None, 0, 0)
+# ---- benchmark table in README.md: every row recomputed from its per-fold CSV ----
+import re
+MAP = {
+    ("ResNet-50", 448): "resnet_r448/cv", ("ResNet-50", 224): "resnet_224_fov_comparison/r224_fov0415",
+    ("ResNet-18", 448): "resnet18/resnet18_r448", ("ResNet-18", 224): "resnet18/resnet18_r224",
+    ("EfficientNet-B3", 448): "efficientnet_b3/efficientnet_b3_r448", ("EfficientNet-B3", 224): "efficientnet_b3/efficientnet_b3_r224",
+    ("DINOv2-Large", 448): "dinov2_large_frozen_448", ("DINOv2-Large", 224): "dinov2_large_frozen_224",
+    ("DINOv3-Base", 448): "dinov3_frozen_448", ("DINOv3-Base", 224): "dinov3_frozen_224",
+    ("DINOv2-Base", 448): "dinov2_frozen_448", ("DINOv2-Base", 224): "dinov2_frozen_224",
+    ("DINOv2-Small", 224): "dinov2_small_frozen_224", ("DINOv2-Small + LoRA", 224): "lora_dinov2_224",
+    ("Cell-DINO", 448): "celldino_frozen_448", ("Cell-DINO", 224): "celldino_frozen_224",
+    ("CLIP ViT-L/14 (locked recipe)", 224): "clip_frozen_224", ("BiomedCLIP", 224): "biomedclip_frozen_224",
+}
+def fold_vals(rel):
+    p = os.path.join(R, rel, "cv_summary.csv")
+    if not os.path.exists(p): return None
+    r = [x for x in rows(p) if x["fold"].isdigit()]
+    col = "mean_test_roc_auc" if r and "mean_test_roc_auc" in r[0] else next(k for k in r[0] if "auc" in k.lower())
+    return [float(x[col]) for x in sorted(r, key=lambda x: int(x["fold"]))]
+n_rows = 0
+for line in open(os.path.join(ROOT, "README.md"), encoding="utf-8"):
+    m = re.match(r"\|[^|]+\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*\**([0-9.]+) ± ([0-9.]+)\**\s*\|", line)
+    if not m: continue
+    n_rows += 1
+    model, res, mean, sd = m.group(1), int(m.group(2)), float(m.group(3)), float(m.group(4))
+    v = fold_vals(MAP[(model, res)]) if (model, res) in MAP else None
+    tag = "table %s %d px" % (model, res)
+    if v is None or len(v) != 6:
+        chk(tag + " (6 folds)", None, mean, 6e-5); continue
+    chk(tag + " mean", st.mean(v), mean, 6e-5); chk(tag + " SD", st.stdev(v), sd, 6e-5)
+chk("benchmark table rows found in README", float(n_rows), 18.0, 0)
+
 print()
 print("methods available in enrich_r65.csv:", sorted({k[0] for k in E}))
 print("summary:", {k: out.count(k) for k in ("PASS", "FAIL", "MISSING")})

@@ -13,7 +13,11 @@ for what changed, why, and how large the correction was.
 | Regime | Model | Resolution | Test ROC-AUC (6-fold CV) |
 |---|---|---|---|
 | Fine-tuned | ResNet-50 | 448 | **0.6792 ± 0.0245** |
+| Fine-tuned | ResNet-18 | 448 | 0.6759 ± 0.0218 |
+| Fine-tuned | EfficientNet-B3 | 448 | 0.6692 ± 0.0118 |
 | Fine-tuned | ResNet-50 | 224 | 0.6638 ± 0.0153 |
+| Fine-tuned | EfficientNet-B3 | 224 | 0.6622 ± 0.0254 |
+| Fine-tuned | ResNet-18 | 224 | 0.6611 ± 0.0145 |
 | Frozen probe | DINOv2-Large | 448 | 0.6412 ± 0.0170 |
 | Frozen probe | DINOv3-Base | 448 | 0.6398 ± 0.0192 |
 | LoRA (2.4% trainable) | DINOv2-Small + LoRA | 224 | 0.6373 ± 0.0203 |
@@ -64,7 +68,7 @@ benchmark, the brightfield vs fluorescence comparison and the explainability res
 | Cluster job specs and parameter files behind each run | jobs/, params/ |
 | Early result logs and one-off patch scripts (not used by the pipeline) | legacy/ |
 
-EfficientNet-B3 status: the configuration (`params/params_efficientnet_b3*.json`, model registration in `defaults/models.py`) is by Bhartendu Parihar, who also ran the 448 px and 224 px arms (the 224 px arm uses resize 540 then crop 224, a field of view of 0.415). Their results are not part of the verified results in this release. They are being re-evaluated from the saved checkpoints with `jobs/robin-bioact-effnet-eval.yaml` and `efficientnet_cv.py`, and will be added with the same verification as the other models.
+EfficientNet-B3 and ResNet-18: the configurations (`params/params_efficientnet_b3*.json`, `params/params_resnet18*.json` and the EfficientNet-B3 model registration in `defaults/models.py`) are by Bhartendu Parihar, who also trained both models at 448 px and at 224 px (resize 540 then crop 224, a field of view of 0.415). Their results in the table above are re-computed from his saved checkpoints at compound level with `cv_rescore.py` (jobs: `jobs/robin-bioact-effnet-eval.yaml`, `jobs/robin-bioact-r18-eval.yaml`) and are checked by `verify/verify_claims.py` like the other models. Details and caveats are in `results_showcase/efficientnet_b3/README.md` and `results_showcase/resnet18/README.md`: his ResNet-18 runs used early stopping (the ResNet-50 reference did not), and his text file for EfficientNet-B3 at 448 px does not match his checkpoints, so the checkpoint-derived value is used.
 
 Clone tip: the full git history is about 500 MB because an early commit added sample images and metadata tables under src/data. To get only the current state, use `git clone --depth 1 https://github.com/Robi97-singh/bioactive.git` (about 80 MB).
 
