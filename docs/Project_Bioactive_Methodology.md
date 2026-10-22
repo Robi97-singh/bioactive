@@ -48,12 +48,16 @@ BiomedCLIP is omitted from this table; its corrected value (0.6214) is in the be
 
 ## Benchmark results
 
-Fine-tuned ResNet-50 is the strongest arm: at 448 px it reaches a mean test ROC-AUC of 0.679, against 0.621 to 0.641 for the frozen probes. Mean test ROC-AUC over 29 assays, six-fold cross-validation, compound-level aggregation:
+Fine-tuned CNNs are the strongest arms: ResNet-50 at 448 px reaches a mean test ROC-AUC of 0.679, with ResNet-18 (0.676) and EfficientNet-B3 (0.669) at 448 px within one fold-to-fold SD of it, against 0.621 to 0.641 for the frozen probes. Mean test ROC-AUC over 29 assays, six-fold cross-validation, compound-level aggregation:
 
 | Regime | Model | Resolution (px) | Test ROC-AUC (mean ± SD) |
 | --- | --- | --- | --- |
 | Fine-tuned | ResNet-50 | 448 | 0.6792 ± 0.0245 |
+| Fine-tuned | ResNet-18 | 448 | 0.6759 ± 0.0218 |
+| Fine-tuned | EfficientNet-B3 | 448 | 0.6692 ± 0.0118 |
 | Fine-tuned | ResNet-50 | 224 | 0.6638 ± 0.0153 |
+| Fine-tuned | EfficientNet-B3 | 224 | 0.6622 ± 0.0254 |
+| Fine-tuned | ResNet-18 | 224 | 0.6611 ± 0.0145 |
 | Frozen probe | DINOv2-Large | 448 | 0.6412 ± 0.0170 |
 | Frozen probe | DINOv3-Base | 448 | 0.6398 ± 0.0192 |
 | LoRA (2.4% trainable) | DINOv2-Small | 224 | 0.6373 ± 0.0203 |
@@ -66,6 +70,8 @@ Fine-tuned ResNet-50 is the strongest arm: at 448 px it reaches a mean test ROC-
 | Frozen probe | DINOv2-Small | 224 | 0.6259 ± 0.0121 |
 | Frozen probe | CLIP ViT-L/14 | 224 | 0.6257 ± 0.0160 |
 | Frozen probe | BiomedCLIP | 224 | 0.6214 ± 0.0127 |
+
+ResNet-18 and EfficientNet-B3 were configured and trained by Bhartendu Parihar; their numbers here are re-computed from his saved checkpoints at compound level with cv\_rescore.py. His ResNet-18 runs used early stopping, the ResNet-50 reference did not. For EfficientNet-B3 at 448 px his own text file reports a lower mean (about 0.661) than his checkpoints give (0.669); the checkpoint-derived value is used and the cause of the difference is not established. The Friedman and Nemenyi tests and the fold rankings below cover the original arms only; ResNet-18 and EfficientNet-B3 are not part of them.
 
 The public benchmark of the reference paper reports 0.660 ± 0.094 and is a different number from every row above.
 
@@ -113,7 +119,7 @@ On 65 randomly sampled targets, occlusion is the only explanation method that cl
 
 ## Limitations and reproduction
 
-The benchmark ranking is robust at the level of "ResNet-50 first, frozen probes tied", but several design choices limit what can be concluded.
+The benchmark ranking is robust at the level of "fine-tuned CNNs first, frozen probes tied", but several design choices limit what can be concluded.
 
 - **Unequal tuning:** the frozen recipe (learning rate 0.02) was selected on fold 0 with Cell-DINO and applied unchanged to all frozen backbones, whereas ResNet-50 and LoRA use individually tuned recipes.
 - **Cell-DINO input:** its wrapper resizes images to 128 px internally, so its explanation maps are coarse.
@@ -123,4 +129,4 @@ The benchmark ranking is robust at the level of "ResNet-50 first, frozen probes 
 - **Not evaluated:** deletion and insertion scores for the ResNet Grad-CAM reference.
 - **Brightfield comparison** uses a 102-plate subset and is not comparable with the full-dataset rows.
 
-All code is in the repository `Robi97-singh/bioactive` (explainability pipeline and 65-target replication added in commit `ee54038`). The README lists every script, its role and the exact commands for data preparation, training, embedding extraction, head training, aggregation and figures. The headline numbers can be re-checked with verify/verify\_claims.py, and errors found in our own work are listed in verify/CORRECTIONS.md.
+All code is in the repository `Robi97-singh/bioactive` (explainability pipeline and 65-target replication added in commit `ee54038`). The README lists every script, its role and the exact commands for data preparation, training, embedding extraction, head training, aggregation and figures. The headline numbers and every row of the benchmark table can be re-checked from the committed result files with verify/verify\_claims.py (65 checks; an AI-assisted consistency check, not an independent proof, see verify/VERIFY.md), and errors found in our own work are listed in verify/CORRECTIONS.md.
