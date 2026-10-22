@@ -162,10 +162,10 @@ ax.set_title(f"Backbone comparison, ranked by mean ROC-AUC\n"
              fontsize=12)
 ax.legend(fontsize=8, loc="upper right")
 ax.grid(axis="y", alpha=0.3)
-ax.set_ylim(0.45, 0.85)
+ax.set_ylim(0.40, 0.85)
 # annotate means just under each box's whisker region
 for i, c in enumerate(order):
-    ax.text(i + 1, 0.465, f"mean\n{paired[c].mean():.3f}", ha="center",
+    ax.text(i + 1, 0.405, f"mean\n{paired[c].mean():.3f}", ha="center",
             fontsize=8, color="black")
 plt.tight_layout()
 plt.savefig(os.path.join(OUTDIR, "fig_B_model_comparison.png"), dpi=150)

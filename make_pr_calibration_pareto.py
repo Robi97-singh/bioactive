@@ -118,12 +118,12 @@ ax.axhline(base_rate, ls="--", color="grey", lw=1, label=f"random baseline (AP={
 ax.set_xlabel("Recall", fontsize=11)
 ax.set_ylabel("Precision", fontsize=11)
 ax.set_title("Precision-Recall curves, pooled across folds and assays\n(JUMP-CP source_11, 224 resolution)", fontsize=12)
-ax.legend(fontsize=8.5, loc="upper right")
+ax.legend(fontsize=8.5, loc="upper left", bbox_to_anchor=(1.01, 1.0))
 ax.grid(alpha=0.3)
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 plt.tight_layout()
-plt.savefig(os.path.join(OUTDIR, "fig_F_pr_curves.png"), dpi=150)
+plt.savefig(os.path.join(OUTDIR, "fig_F_pr_curves.png"), dpi=150, bbox_inches="tight")
 plt.close()
 print("wrote fig_F_pr_curves.png")
 
@@ -165,7 +165,7 @@ PARETO = [
     ("Cell-DINO",             0.6333, 100 * head_params(384)  / 21_500_000, "frozen",    (10, 18)),
     ("DINOv2-Small",          0.6259, 100 * head_params(384)  / 22_100_000, "frozen",    (10, -32)),
     ("DINOv2-Base",           0.6272, 100 * head_params(768)  / 86_600_000, "frozen",    (18, 22)),
-    ("DINOv3-Base",           0.6281, 100 * head_params(768)  / 86_000_000, "frozen",    (-75, 32)),  # ViT-B, ~86M assumed (768-dim matches DINOv2-Base scale; not wired into this repo's models.py)
+    ("DINOv3-Base",           0.6281, 100 * head_params(768)  / 86_000_000, "frozen",    (-40, 72)),  # ViT-B, ~86M assumed (768-dim matches DINOv2-Base scale; not wired into this repo's models.py)
     ("BiomedCLIP",            0.6214, 100 * head_params(768)  / 86_000_000, "frozen",    (5, -42)),  # ViT-B/16 vision tower, ~86M
     ("DINOv2-Large",          0.6299, 100 * head_params(1024) / 304_800_000, "frozen",   (10, 30)),
     ("CLIP-L (locked)",       0.6257, 100 * head_params(768)  / 304_000_000, "frozen",   (-15, -35)),
