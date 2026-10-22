@@ -24,3 +24,5 @@ The text file is lower in every fold (by 0.003 to 0.014). Predictions saved in h
 - The field of view of each arm is the one applied by `dump_predictions.py` at evaluation; the training transforms are those in his params files and were not independently checked.
 - Params: `params/params_efficientnet_b3_fold*.json` (448 px) and `params_efficientnet_b3_r224_fold*.json` (224 px), copied from his repository.
 - Re-scoring job: `jobs/robin-bioact-effnet-eval.yaml`.
+
+Per-fold (`cv_fold_spread.png`) and per-assay (`cv_per_assay.png`) plots for each resolution are in the arm folders; made with `plot_cv_extra.py`.

@@ -18,3 +18,5 @@ Files: `resnet18_r448/` and `resnet18_r224/`, each with `cv_summary.csv` (per fo
 - His ResNet-18 runs use early stopping (patience 6). The ResNet-50 reference setup has none. All other settings compared (learning rate, batch size, head, pretrained weights) are identical. The two models are therefore not a perfectly controlled comparison.
 - Params: `params/params_resnet18_fold*.json` and `params_resnet18_r224_fold*.json` (copied from his repository; they keep his paths).
 - Re-scoring job: `jobs/robin-bioact-r18-eval.yaml`.
+
+Per-fold (`cv_fold_spread.png`) and per-assay (`cv_per_assay.png`) plots for each resolution are in the arm folders; made with `plot_cv_extra.py`.

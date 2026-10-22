@@ -41,6 +41,8 @@ ARMS = [
     ("biomedclip_r224", "BiomedCLIP",  "frozen"),
     ("clip_r224",       "CLIP-L\n(locked recipe)", "frozen"),
     ("resnet_r224",     "ResNet50\n(fine-tuned)", "finetuned"),
+    ("resnet18_r224",   "ResNet-18\n(fine-tuned)", "finetuned"),
+    ("effnet_r224",     "EfficientNet-B3\n(fine-tuned)", "finetuned"),
 ]
 # resolution comparison arms
 RES_ARMS = [
@@ -49,6 +51,8 @@ RES_ARMS = [
     ("dino_large_r224", "DINOv2-Large 224"), ("dino_large_r448", "DINOv2-Large 448"),
     ("dinov3_r224", "DINOv3-Base 224"), ("dinov3_r448", "DINOv3-Base 448"),
     ("resnet_r224", "ResNet 224"), ("resnet_r448", "ResNet 448"),
+    ("resnet18_r224", "ResNet-18 224"), ("resnet18_r448", "ResNet-18 448"),
+    ("effnet_r224", "EfficientNet-B3 224"), ("effnet_r448", "EfficientNet-B3 448"),
 ]
 
 # colors: frozen = blue shades, fine-tuned = warm
@@ -56,6 +60,7 @@ COLORS = {
     "Cell-DINO": "#2E6FB0", "DINOv2": "#5BA3D0", "DINOv2-Large": "#1A4A7A",
     "DINOv3-Base": "#0F3A5C", "BiomedCLIP": "#8FC3E0", "CLIP-L\n(locked recipe)": "#4A90C2",
     "ResNet50\n(fine-tuned)": "#C0603A",
+    "ResNet-18\n(fine-tuned)": "#E0A070", "EfficientNet-B3\n(fine-tuned)": "#8C3F1F",
 }
 PUBLIC_REF = 0.660  # Haslum public JUMP-CP benchmark
 
@@ -93,7 +98,7 @@ for key, label, group in ARMS:
     means.append(np.mean(s.values))
 
 # ---------- FIGURE A: per-assay distribution boxplot ----------
-fig, ax = plt.subplots(figsize=(8, 5.5))
+fig, ax = plt.subplots(figsize=(11, 5.5))
 bp = ax.boxplot(data, labels=labels, patch_artist=True, widths=0.6,
                 medianprops=dict(color="black", linewidth=1.5),
                 flierprops=dict(marker="o", markersize=4, alpha=0.5))
@@ -208,11 +213,11 @@ for key, label in RES_ARMS:
     res_data.append(s.values)
 
 if res_data:
-    fig, ax = plt.subplots(figsize=(9, 5.5))
+    fig, ax = plt.subplots(figsize=(13, 5.5))
     bp = ax.boxplot(res_data, labels=res_labels, patch_artist=True, widths=0.6,
                     medianprops=dict(color="black", linewidth=1.5))
     # color 224 vs 448 pairs
-    pair_colors = ["#5BA3D0", "#2E6FB0"] * 3
+    pair_colors = ["#5BA3D0", "#2E6FB0"] * 7
     for patch, col in zip(bp["boxes"], pair_colors[:len(bp["boxes"])]):
         patch.set_facecolor(col); patch.set_alpha(0.85)
     ax.axhline(PUBLIC_REF, ls="--", color="grey", lw=1)

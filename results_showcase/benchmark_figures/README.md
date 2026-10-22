@@ -11,14 +11,14 @@ model comparison with Friedman + Nemenyi statistical testing (their Fig 2a). All
 | File | What it is |
 |------|-----------|
 | `fig_A_per_assay_boxplot.png` | Per-assay ROC-AUC distribution, one box per backbone (29 assays) |
-| `fig_B_model_comparison.png` | Frozen backbones + ResNet ranked, Friedman + Nemenyi -- headline figure |
+| `fig_B_model_comparison.png` | Frozen backbones + fine-tuned CNNs ranked, Friedman + Nemenyi -- headline figure |
 | `fig_C_resolution.png` | Resolution effect (224 vs 448) for the multi-resolution backbones |
 | `fig_D_adaptation_spectrum.png` | Frozen probe -> LoRA -> fine-tuning, including a same-backbone frozen DINOv2-Small point beside LoRA |
-| `fig_E_nemenyi_heatmap.png` | Pairwise significance matrix (7 arms) |
+| `fig_E_nemenyi_heatmap.png` | Pairwise significance matrix (9 arms) |
 | `fig_F_pr_curves.png` | Precision-Recall overlay, all arms with saved per-sample predictions |
 | `fig_G_calibration.png` | Reliability / calibration overlay, all arms |
 | `fig_H_pareto_efficiency.png` | Test ROC-AUC vs. % trainable parameters |
-| `nemenyi_pvalues.csv` | Pairwise significance matrix, raw values (7-arm comparison) |
+| `nemenyi_pvalues.csv` | Pairwise significance matrix, raw values (9-arm comparison) |
 | `benchmark_summary.csv` | Mean / median / std per arm |
 
 ## Results (6-fold CV, mean +/- SD of fold means)
@@ -26,7 +26,11 @@ model comparison with Friedman + Nemenyi statistical testing (their Fig 2a). All
 | Regime | Model | Resolution | Test ROC-AUC | Trainable params |
 |---|---|---|---|---|
 | Fine-tuned | ResNet50 | 448 | 0.6792 +/- 0.0245 | all |
+| Fine-tuned | ResNet-18 | 448 | 0.6759 +/- 0.0218 | all |
+| Fine-tuned | EfficientNet-B3 | 448 | 0.6692 +/- 0.0118 | all |
 | Fine-tuned | ResNet50 | 224 | 0.6638 +/- 0.0153 | all |
+| Fine-tuned | EfficientNet-B3 | 224 | 0.6622 +/- 0.0254 | all |
+| Fine-tuned | ResNet-18 | 224 | 0.6611 +/- 0.0145 | all |
 | Frozen probe | DINOv2-Large | 448 | 0.6412 +/- 0.0170 | head only |
 | Frozen probe | DINOv3-Base | 448 | 0.6398 +/- 0.0192 | head only |
 | LoRA | DINOv2-Small + LoRA | 224 | 0.6373 +/- 0.0203 | 0.54M (2.4%) |
@@ -40,58 +44,71 @@ model comparison with Friedman + Nemenyi statistical testing (their Fig 2a). All
 | Frozen probe | CLIP ViT-L/14 (locked recipe) | 224 | 0.6257 +/- 0.0160 | head only |
 | Frozen probe | BiomedCLIP | 224 | 0.6214 +/- 0.0127 | head only |
 
-**7-arm comparison (Figures B/E; six frozen probes + ResNet50, all at 224):** Friedman chi2 = 33.78, p = 7.4e-6.
-**12-arm comparison (`cv_friedman.py`; frozen probes at both resolutions + ResNet50 r448):** chi2 = 37.31,
-p = 1.0e-4, Nemenyi critical difference 6.8 ranks; ResNet50 r448 ranks first in all 6 folds and separates from DINOv2 r224,
-DINOv3-Base r224, DINOv2-Small, CLIP and BiomedCLIP.
+**9-arm comparison (Figures B/E; six frozen probes + ResNet50, ResNet-18, EfficientNet-B3, all at 224; blocks = the 29 assays, each averaged over the six folds):** Friedman chi2 = 67.17, p = 1.8e-11.
+**16-arm comparison (`cv_friedman.py`; blocks = the six folds; frozen probes at both resolutions + ResNet50 r448 + ResNet-18 and EfficientNet-B3 at both resolutions):** chi2 = 71.79,
+p = 2.1e-9, Nemenyi critical difference 9.42 ranks. ResNet-18 r448 (mean rank 2.17), ResNet50 r448 (2.33) and EfficientNet-B3 r448 (2.50) rank first to third and separate from DINOv2 r224,
+DINOv3-Base r224, DINOv2-Small, CLIP and BiomedCLIP; ResNet-18 r448 also separates from DINOv2-Large r224, and ResNet-18 r224 and EfficientNet-B3 r224 (rank 4.0 each) separate from BiomedCLIP. No CNN separates from the frozen 448 probes or Cell-DINO, and the three 448 CNNs are not separable from each other.
 
-Nemenyi pairwise p-values (7 arms; bold = significant at 0.05):
+Nemenyi pairwise p-values (9 arms, 29 assays as blocks; bold = significant at 0.05):
 
 | Comparison | p-value | Significant |
 |---|---|---|
-| Cell-DINO vs DINOv2 | 0.2391 | no |
-| Cell-DINO vs DINOv2-Large | 0.8629 | no |
-| Cell-DINO vs DINOv3-Base | 0.1047 | no |
-| Cell-DINO vs BiomedCLIP | 0.0178 | **yes** |
-| Cell-DINO vs CLIP-L (locked recipe) | 0.1620 | no |
-| Cell-DINO vs ResNet50 (fine-tuned) | 0.8032 | no |
-| DINOv2 vs DINOv2-Large | 0.9464 | no |
-| DINOv2 vs DINOv3-Base | 0.9998 | no |
-| DINOv2 vs BiomedCLIP | 0.9599 | no |
+| Cell-DINO vs DINOv2 | 0.4999 | no |
+| Cell-DINO vs DINOv2-Large | 0.9570 | no |
+| Cell-DINO vs DINOv3-Base | 0.4019 | no |
+| Cell-DINO vs BiomedCLIP | 0.1530 | no |
+| Cell-DINO vs CLIP-L (locked recipe) | 0.3410 | no |
+| Cell-DINO vs ResNet50 (fine-tuned) | 0.6012 | no |
+| Cell-DINO vs ResNet-18 (fine-tuned) | 0.5336 | no |
+| Cell-DINO vs EfficientNet-B3 (fine-tuned) | 0.4019 | no |
+| DINOv2 vs DINOv2-Large | 0.9948 | no |
+| DINOv2 vs DINOv3-Base | 1.0000 | no |
+| DINOv2 vs BiomedCLIP | 0.9995 | no |
 | DINOv2 vs CLIP-L (locked recipe) | 1.0000 | no |
-| DINOv2 vs ResNet50 (fine-tuned) | 0.0039 | **yes** |
-| DINOv2-Large vs DINOv3-Base | 0.8032 | no |
-| DINOv2-Large vs BiomedCLIP | 0.4108 | no |
-| DINOv2-Large vs CLIP-L (locked recipe) | 0.8884 | no |
-| DINOv2-Large vs ResNet50 (fine-tuned) | 0.1047 | no |
-| DINOv3-Base vs BiomedCLIP | 0.9966 | no |
+| DINOv2 vs ResNet50 (fine-tuned) | 0.0022 | **yes** |
+| DINOv2 vs ResNet-18 (fine-tuned) | 0.0015 | **yes** |
+| DINOv2 vs EfficientNet-B3 (fine-tuned) | 0.0007 | **yes** |
+| DINOv2-Large vs DINOv3-Base | 0.9854 | no |
+| DINOv2-Large vs BiomedCLIP | 0.8623 | no |
+| DINOv2-Large vs CLIP-L (locked recipe) | 0.9740 | no |
+| DINOv2-Large vs ResNet50 (fine-tuned) | 0.0478 | **yes** |
+| DINOv2-Large vs ResNet-18 (fine-tuned) | 0.0357 | **yes** |
+| DINOv2-Large vs EfficientNet-B3 (fine-tuned) | 0.0191 | **yes** |
+| DINOv3-Base vs BiomedCLIP | 0.9999 | no |
 | DINOv3-Base vs CLIP-L (locked recipe) | 1.0000 | no |
-| DINOv3-Base vs ResNet50 (fine-tuned) | 0.0009 | **yes** |
-| BiomedCLIP vs CLIP-L (locked recipe) | 0.9860 | no |
+| DINOv3-Base vs ResNet50 (fine-tuned) | 0.0012 | **yes** |
+| DINOv3-Base vs ResNet-18 (fine-tuned) | 0.0008 | **yes** |
+| DINOv3-Base vs EfficientNet-B3 (fine-tuned) | 0.0004 | **yes** |
+| BiomedCLIP vs CLIP-L (locked recipe) | 1.0000 | no |
 | BiomedCLIP vs ResNet50 (fine-tuned) | 0.0001 | **yes** |
-| CLIP-L (locked recipe) vs ResNet50 (fine-tuned) | 0.0019 | **yes** |
+| BiomedCLIP vs ResNet-18 (fine-tuned) | 0.0001 | **yes** |
+| BiomedCLIP vs EfficientNet-B3 (fine-tuned) | 0.0000 | **yes** |
+| CLIP-L (locked recipe) vs ResNet50 (fine-tuned) | 0.0008 | **yes** |
+| CLIP-L (locked recipe) vs ResNet-18 (fine-tuned) | 0.0005 | **yes** |
+| CLIP-L (locked recipe) vs EfficientNet-B3 (fine-tuned) | 0.0002 | **yes** |
+| ResNet50 (fine-tuned) vs ResNet-18 (fine-tuned) | 1.0000 | no |
+| ResNet50 (fine-tuned) vs EfficientNet-B3 (fine-tuned) | 1.0000 | no |
+| ResNet-18 (fine-tuned) vs EfficientNet-B3 (fine-tuned) | 1.0000 | no |
 
 ## What this shows
 
-1. **Fine-tuning is consistently the strongest approach.** ResNet50 at 448 ranks first in every fold. At matched 224 it is
-   significantly better than DINOv2-Base, DINOv3-Base, CLIP and BiomedCLIP, but not significantly different from Cell-DINO
-   (p = 0.80) or DINOv2-Large (p = 0.10).
-2. **Frozen backbones are largely tied.** Only one frozen pair separates (Cell-DINO over BiomedCLIP, p = 0.018).
+1. **Fine-tuned CNNs are the strongest approach and are not separable from one another.** Among the original arms ResNet50 at 448 ranks first in every fold; with ResNet-18 and EfficientNet-B3 added, the best of the 16 arms varies by fold (EfficientNet-B3 in folds 0, 2 and 3, ResNet-18 in fold 1, ResNet50 in folds 4 and 5). At matched 224 all three CNNs are significantly better than DINOv2-Base, DINOv3-Base, CLIP and BiomedCLIP (p <= 0.002) and marginally better than DINOv2-Large (p = 0.019-0.048), but not significantly different from Cell-DINO (p = 0.40-0.60) or from each other (p = 1.0).
+2. **Frozen backbones are tied.** No frozen pair separates in the 9-arm test (largest gap: Cell-DINO vs BiomedCLIP, p = 0.15).
    Neither pretraining domain nor model scale gives a reliable advantage: DINOv2-Large and DINOv2-Base are indistinguishable
-   (p = 0.95), and Cell-DINO is not significantly different from generic ImageNet backbones. Caveat: the frozen recipe was
+   (p = 0.99), and Cell-DINO is not significantly different from generic ImageNet backbones. Caveat: the frozen recipe was
    tuned on Cell-DINO (fold-0 learning-rate sweep) and applied unchanged to the others.
 3. **"Biomedical" is not domain-matched.** BiomedCLIP is indistinguishable from the generic ImageNet DINO backbones.
 4. **Resolution has a small positive effect.** 224 -> 448: DINOv2-Base +0.010, DINOv2-Large +0.011, DINOv3-Base +0.012,
-   Cell-DINO 0.000, ResNet50 +0.015; all within the 0.01-0.02 fold-to-fold standard deviation.
+   Cell-DINO 0.000, ResNet50 +0.015, ResNet-18 +0.015, EfficientNet-B3 +0.007; all within the 0.01-0.03 fold-to-fold standard deviation.
 5. **Cheap adaptation recovers about 30% of the frozen-to-fine-tuned gap.** LoRA (2.4% trainable) 0.6373 vs. its same-backbone
    frozen baseline DINOv2-Small 0.6259: (0.6373 - 0.6259) / (0.6638 - 0.6259) = 30% of the gap to fine-tuned ResNet50 at 224.
 
 ## Design decisions
 
-- **Figure B is 224-only and frozen + ResNet**, so the Friedman/Nemenyi test isolates the backbone question from resolution.
+- **Figure B is 224-only and frozen + fine-tuned CNNs**, so the Friedman/Nemenyi test isolates the backbone question from resolution.
 - **LoRA and its same-backbone frozen baseline are shown in Figure D, not B**: LoRA is a different training regime (own recipe).
-- **448 exists only for the DINO-family backbones.** BiomedCLIP and CLIP are fixed at 224.
-- **Recipe asymmetry:** frozen probes share one locked recipe for a fair benchmark; ResNet50 and LoRA use individually tuned recipes.
+- **448 exists for the DINO-family backbones and the three CNNs.** BiomedCLIP and CLIP are fixed at 224.
+- **Recipe asymmetry:** frozen probes share one locked recipe for a fair benchmark; ResNet50, ResNet-18, EfficientNet-B3 and LoRA use individually tuned recipes (ResNet-18 and EfficientNet-B3 by Bhartendu Parihar; ResNet-18 with early stopping).
 - **Not included:** individual-assay ROC curves for most arms (per-sample predictions are saved only for some arms).
 
 ## Reproducing
@@ -100,6 +117,6 @@ Nemenyi pairwise p-values (7 arms; bold = significant at 0.05):
 python make_benchmark_figures.py      # figs A, B, C, E + Nemenyi + summary
 python make_adaptation_figure.py      # fig D
 python make_pr_calibration_pareto.py  # figs F, G, H (frozen points in the Pareto script are typed in)
-python cv_friedman.py                 # 12-arm Friedman / Nemenyi
+python cv_friedman.py                 # 16-arm Friedman / Nemenyi
 # reads /shared/ssd/logs/b-r-singh1/results/cv/{arm}/cv_per_assay.csv, writes to results/figures/
 ```

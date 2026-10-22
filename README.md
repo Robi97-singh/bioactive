@@ -40,21 +40,23 @@ fold-to-fold standard deviation) and a similar-sized one on fine-tuned ResNet-50
 `results_showcase/benchmark_figures/README.md` for the full resolution comparison.
 
 **Key finding:** under compound-level aggregation, one locked linear-probe recipe for every frozen
-backbone, and 6-fold CV with Friedman + Nemenyi testing, fine-tuned ResNet-50 is the strongest of the
-original arms (ResNet-50 and the frozen probes). At 448 it ranks first in all 6 folds among these arms
-(mean 0.679 vs. 0.621-0.641 for the frozen probes). ResNet-18 (0.676) and EfficientNet-B3 (0.669) at 448 px,
-added later (see the paragraph on EfficientNet-B3 and ResNet-18 below), are within one fold SD of ResNet-50;
-they were not part of the tests below and no test was run between them. In the
-7-arm 224 comparison (six frozen probes + ResNet-50 r224; Friedman chi2 = 33.8, p = 7e-6) it is
-significantly better than DINOv2-Base (p = 0.004), DINOv3-Base (p = 0.0009), CLIP ViT-L/14
-(p = 0.002) and BiomedCLIP (p < 0.001), but not significantly different from Cell-DINO (p = 0.80)
-or DINOv2-Large (p = 0.10). Among the frozen probes only one pair separates (Cell-DINO over
-BiomedCLIP, p = 0.018); all others are statistically tied, so neither pretraining domain nor model
-scale gives a reliable advantage. A broader 12-arm test (`cv_friedman.py`: frozen probes at both
-resolutions + ResNet-50 r448; chi2 = 37.3, p = 1e-4) is more conservative (critical difference
-6.8 ranks): ResNet-50 r448 then separates from DINOv2 r224, DINOv3-Base r224, DINOv2-Small, CLIP and
-BiomedCLIP. LoRA-adapted DINOv2-Small (0.6373) is +0.011 above its frozen backbone and level with
-the best frozen 448 probes; it is not part of the significance tests. Caveat: the frozen recipe
+backbone, and 6-fold CV with Friedman + Nemenyi testing, fine-tuned CNNs are the strongest arms.
+ResNet-50 at 448 px has the highest mean (0.679) and ranks first in all 6 folds among the original
+arms (ResNet-50 and the frozen probes; mean 0.621-0.641 for the frozen probes). ResNet-18 (0.676) and
+EfficientNet-B3 (0.669) at 448 px, added later (see the paragraph on EfficientNet-B3 and ResNet-18
+below), are within one fold SD of ResNet-50; with them included the best of the 16 arms varies by fold
+and the three CNNs are not significantly different from one another. In the 9-arm 224 comparison (six
+frozen probes + ResNet-50, ResNet-18 and EfficientNet-B3 at 224 px; Friedman over the 29 assays, chi2
+= 67.2, p = 2e-11) all three CNNs are significantly better than DINOv2-Base (p <= 0.002), DINOv3-Base
+(p <= 0.001), CLIP ViT-L/14 (p <= 0.001) and BiomedCLIP (p < 0.001), marginally better than
+DINOv2-Large (p = 0.019-0.048), and not significantly different from Cell-DINO (p = 0.40-0.60). No
+frozen pair separates (largest gap: Cell-DINO vs BiomedCLIP, p = 0.15), so neither pretraining domain
+nor model scale gives a reliable advantage. A broader 16-arm test over the six folds
+(`cv_friedman.py`: frozen probes at both resolutions + the three CNNs; chi2 = 71.8, p = 2e-9) is more
+conservative (critical difference 9.4 ranks): the three 448 px CNNs (mean ranks 2.2-2.5) separate from
+DINOv2 r224, DINOv3-Base r224, DINOv2-Small, CLIP and BiomedCLIP, but not from the best frozen 448 px
+probes or Cell-DINO. LoRA-adapted DINOv2-Small (0.6373) is +0.011 above its frozen backbone and level
+with the best frozen 448 probes; it is not part of the significance tests. Caveat: the frozen recipe
 (lr 0.02) was selected in a fold-0 sweep on Cell-DINO and applied unchanged to all frozen backbones,
 whereas ResNet-50 and LoRA use individually tuned recipes. See `results_showcase/benchmark_figures/README.md`
 and `docs/Project_Bioactive_Methodology.md` (updated 2026-10-21 with the corrected
@@ -190,6 +192,8 @@ flowchart TD
 | `extract_embeddings.py` | Runs a frozen backbone once per CV split, caches `{embeddings, labels, uids}` to disk — mirrors `classification.py`'s CLI exactly | Frozen probe |
 | `train_head.py` | Trains a linear head on cached embeddings; evaluates on TEST split with compound-level aggregation, writes `per_assay_auc.csv` | Frozen probe |
 | `aggregate_cv.py` | Aggregates the 6 CV folds into mean ± std test ROC-AUC per model/resolution | Both (convergence point) |
+| `cv_rescore.py` | Re-scores saved per-image predictions (`oof_predictions.csv`) at compound level into `cv_summary.csv` and `cv_per_assay.csv` per arm (used for ResNet-18 and EfficientNet-B3) | Fine-tuned CNN (re-scoring) |
+| `plot_cv_extra.py` | Per-fold and per-assay plots from `cv_summary.csv` and `cv_per_assay.csv` | Fine-tuned CNN (viz) |
 | `make_benchmark_figures.py` | Cross-arm publication figures + `benchmark_summary.csv` (model comparison, resolution effect, Friedman/Nemenyi) | Both (final viz) |
 | `make_plots_v3.py` | Per-run diagnostic plots for one `model_name` | Both (final viz) |
 | `run_gradcam_v2.py` | Grad-CAM visualization for a fine-tuned ResNet-50 | Fine-tuned CNN (inference/viz) |

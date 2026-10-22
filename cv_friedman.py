@@ -3,8 +3,9 @@ from scipy.stats import friedmanchisquare, rankdata
 CV = "/shared/ssd/logs/b-r-singh1/results/cv"
 M = ["celldino_r224","celldino_r448","dino_r448","dino_large_r448","dino_r224",
      "dinov3_r448","dino_large_r224","dinov3_r224","clip_r224","dino_small_r224",
-     "biomedclip_r224","resnet_r448"]
-Q05 = {2:1.960,3:2.343,4:2.569,5:2.728,6:2.850,7:2.949,8:3.031,9:3.102,10:3.164,11:3.219,12:3.268}
+     "biomedclip_r224","resnet_r448",
+     "resnet18_r448","resnet18_r224","effnet_r448","effnet_r224"]
+Q05 = {2:1.960,3:2.343,4:2.569,5:2.728,6:2.850,7:2.949,8:3.031,9:3.102,10:3.164,11:3.219,12:3.268,13:3.313,14:3.354,15:3.391,16:3.426}
 cols = {}
 for m in M:
     d = pd.read_csv(f"{CV}/{m}/cv_summary.csv")
