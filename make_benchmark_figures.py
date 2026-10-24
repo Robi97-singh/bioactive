@@ -50,7 +50,7 @@ RES_ARMS = [
     ("dino_r224", "DINOv2 224"), ("dino_r448", "DINOv2 448"),
     ("dino_large_r224", "DINOv2-Large 224"), ("dino_large_r448", "DINOv2-Large 448"),
     ("dinov3_r224", "DINOv3-Base 224"), ("dinov3_r448", "DINOv3-Base 448"),
-    ("resnet_r224", "ResNet 224"), ("resnet_r448", "ResNet 448"),
+    ("resnet_r224", "ResNet-50 224"), ("resnet_r448", "ResNet-50 448"),
     ("resnet18_r224", "ResNet-18 224"), ("resnet18_r448", "ResNet-18 448"),
     ("effnet_r224", "EfficientNet-B3 224"), ("effnet_r448", "EfficientNet-B3 448"),
 ]
@@ -117,7 +117,7 @@ ax.set_title("Per-assay bioactivity prediction across backbones\n"
              "(29 assays, JUMP-CP source_11, 6-fold CV)", fontsize=12)
 ax.legend(fontsize=8, loc="lower right")
 ax.grid(axis="y", alpha=0.3)
-ax.set_ylim(0.45, 0.85)
+ax.set_ylim(0.45, 0.90)
 plt.tight_layout()
 plt.savefig(os.path.join(OUTDIR, "fig_A_per_assay_boxplot.png"), dpi=150)
 plt.close()
@@ -162,7 +162,7 @@ ax.set_title(f"Backbone comparison, ranked by mean ROC-AUC\n"
              fontsize=12)
 ax.legend(fontsize=8, loc="upper right")
 ax.grid(axis="y", alpha=0.3)
-ax.set_ylim(0.40, 0.85)
+ax.set_ylim(0.40, 0.90)
 # annotate means just under each box's whisker region
 for i, c in enumerate(order):
     ax.text(i + 1, 0.405, f"mean\n{paired[c].mean():.3f}", ha="center",
@@ -224,7 +224,7 @@ if res_data:
     ax.set_ylabel("Per-assay test ROC-AUC (6-fold mean)", fontsize=11)
     ax.set_title("Resolution effect (224 vs 448) by backbone", fontsize=12)
     ax.grid(axis="y", alpha=0.3)
-    ax.set_ylim(0.45, 0.85)
+    ax.set_ylim(0.45, 0.90)
     plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
     plt.tight_layout()
     plt.savefig(os.path.join(OUTDIR, "fig_C_resolution.png"), dpi=150)

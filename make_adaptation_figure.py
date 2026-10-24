@@ -107,7 +107,7 @@ ax.axhline(0.660, ls="--", color="grey", lw=1, label="public JUMP-CP ref (0.660)
 ax.set_xticks(x)
 ax.set_xticklabels(labels, fontsize=9)
 ax.set_ylabel("Mean test ROC-AUC (per-assay)", fontsize=11)
-ax.set_ylim(0.50, 0.72)
+ax.set_ylim(0.50, 0.80)
 ax.set_title("Adaptation spectrum: frozen probe -> LoRA -> full fine-tuning\n"
              "(DINOv2-family where possible; JUMP-CP source_11, 29 assays)", fontsize=12)
 ax.legend(fontsize=8, loc="upper left")
