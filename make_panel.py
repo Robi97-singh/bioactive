@@ -8,6 +8,7 @@ from scipy.ndimage import gaussian_filter, zoom
 
 # (column title, dir glob under root, substring of npz key)
 COLS = [
+    ("DINOv3\nocclusion", "vitcx_occlusion-dinov3*", "occl"),
     ("DINOv3\nViT-CX", "vitcx_dinov3*r448_r448", "paper"),
     ("DINOv3\ngrad x act", "vitcx_gradcam-dinov3*", "gradxact"),
     ("Cell-DINO\nocclusion", "vitcx_occlusion-celldino*", "occl"),

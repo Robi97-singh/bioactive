@@ -7,7 +7,7 @@ Metrics: deletion and insertion AUC (20 steps), each standardized (z) against 10
 ## Folders
 
 * `random_65_targets/` is the main result. 65 randomly sampled (compound, assay) targets (13 per fold, folds 0-4, 30 positives, 35 negatives, 27 assays). panel_1 to panel_9 (jpg) show side-by-side heat maps (ResNet Grad-CAM and five frozen-model methods, 8 targets per panel). agg_r65.csv has faithfulness by method and group, enrich_r65.csv and enrichment_per_target.csv have cell enrichment, bootstrap_ci.csv the intervals, targets_random65.csv the target list, and contact_sheets/ the numbered images used to label image types by eye (57 normal, 6 sparse, 2 noise).
-* `pilot_16_targets/` is an earlier pilot on 16 targets that were the ResNet's most confident cases (half were noise images). It overstated every method and is kept for transparency only. It holds report_figure.png (three example images), panel_1 and panel_2 (jpg) and CSVs with intervals and the image-type split.
+* `pilot_16_targets/` is an earlier pilot on 16 targets that were the ResNet's most confident cases (half were noise images). It overstated every method and is kept for transparency only. It holds report_figure.png (three example images), panel_1 and panel_2 (jpg; heat maps of ResNet Grad-CAM and six frozen-model methods: DINOv3 occlusion, ViT-CX and grad x act, Cell-DINO occlusion, ViT-CX and grad x act) and CSVs with intervals and the image-type split. DINOv3 occlusion on the 16 pilot targets: deletion z -4.85 (-8.01 to -2.22), insertion z -1.01 (-4.48 to 2.09), enrichment 0.96 (0.84 to 1.08).
 
 ## Main result (65 random targets)
 
